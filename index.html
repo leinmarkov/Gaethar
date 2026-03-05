@@ -47,7 +47,7 @@ textarea:focus{border-color:var(--borderFocus)}
 const ATTRIBUTES=[{key:"FUE",label:"Fuerza"},{key:"AGI",label:"Agilidad"},{key:"CON",label:"Constitución"},{key:"INT",label:"Inteligencia"},{key:"VOL",label:"Voluntad"},{key:"CM",label:"Combate Mele"},{key:"CD",label:"Combate Distancia"}];
 const SKILLS=[{name:"Acrobacias",attr:"AGI"},{name:"Actuación",attr:"VOL"},{name:"Arcana",attr:"INT"},{name:"Atletismo",attr:"FUE"},{name:"Engaño",attr:"VOL"},{name:"Forzar Cerraduras",attr:"AGI"},{name:"Historia",attr:"INT"},{name:"Intimidación",attr:"VOL"},{name:"Investigación",attr:"INT"},{name:"Juego de Manos",attr:"AGI"},{name:"Manejo de Animales",attr:"INT"},{name:"Medicina",attr:"INT"},{name:"Naturaleza",attr:"INT"},{name:"Percepción",attr:"INT"},{name:"Perspicacia",attr:"VOL"},{name:"Persuasión",attr:"VOL"},{name:"Religión",attr:"INT"},{name:"Reparación",attr:"INT"},{name:"Sigilo",attr:"AGI"},{name:"Supervivencia",attr:"INT"}];
 const AFFLICTIONS=["Quemadura","Quemadura Severa","Helado","Congelado","Sangrado","Sangrado Profundo","Envenenado"];
-const STATUS_EFFECTS=["Encantado","Asustado","Provocado","Aturdido","Incapacitado","Cegado","Sordo","Mudo","Petrificado","Amarrado","Agarrado"];
+const STATUS_EFFECTS=["Agarrado","Amarrado","Asustado","Aturdido","Cegado","Encantado","Incapacitado","Mudo","Petrificado","Provocado","Sordo"];
 const RESISTANCES=["Fuego","Hielo","Eléctrico","Arcano","Sombra","Sagrado"];
 const DOTES_LEVELS=["Defecto","Nivel 4","Nivel 8","Nivel 12","Nivel 16","Nivel 20"];
 const TABS=[{key:"general",label:"General",icon:"⚔"},{key:"combate",label:"Combate",icon:"🛡"},{key:"habilidades",label:"Habilid.",icon:"📜"},{key:"equipo",label:"Equipo",icon:"🎒"},{key:"tecnicas",label:"Técnicas",icon:"✨"},{key:"estado",label:"Estado",icon:"💀"},{key:"iniciativa",label:"Iniciativa",icon:"⚡"},{key:"notas",label:"Notas",icon:"📝"}];
@@ -62,7 +62,8 @@ const SHIELD_OPTIONS=["No","Ligero","Pesado"];
 let _uid=0;function uid(){return Date.now().toString(36)+"_"+(++_uid)}
 
 function emptyChar(){return{id:uid(),nombre:"",especie:"",clase:"",trasfondo:"",defectos:"",nivel:1,experiencia:0,tamano:"",velocidad:"",pRaciales:"",attrs:{FUE:10,AGI:10,CON:10,INT:10,VOL:10,CM:10,CD:10},attrsActual:{FUE:10,AGI:10,CON:10,INT:10,VOL:10,CM:10,CD:10},stats:{pvGast:0,amGast:0,paGast:0,recursoGast:0,estresActual:0},
-mods:{pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0},
+mods:{pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0,bCMMod:0,bCDMod:0,aLigMod:0,aMedMod:0,aPesMod:0},
+atkMods:{manoDerecha:0,manoIzquierda:0,armaSecundaria:0,preparadoArmaPrincipal:0,preparadoArmaSecundaria:0},
 skills:Object.fromEntries(SKILLS.map(s=>[s.name,{nivel:"sinPracticar",valor:10}])),
 competencias:Array.from({length:20},()=>({nombre:"",valor:""})),
 equipo:{armaduraPrincipal:"",faldon:"",casco:"",guantes:"",botas:"",capa:"",anillo1:"",anillo2:"",manoDerecha:"",manoIzquierda:"",armaSecundaria:"",preparadoArmaPrincipal:"",preparadoArmaSecundaria:""},
@@ -85,7 +86,13 @@ function gc(){
   if(!ch.armasComp)ch.armasComp={manoDerecha:{nivel:"sinPracticar",valor:10},manoIzquierda:{nivel:"sinPracticar",valor:10},armaSecundaria:{nivel:"sinPracticar",valor:10},preparadoArmaPrincipal:{nivel:"sinPracticar",valor:10},preparadoArmaSecundaria:{nivel:"sinPracticar",valor:10}};
   if(!ch.atkMode)ch.atkMode={manoDerecha:"mele",manoIzquierda:"mele",armaSecundaria:"mele",preparadoArmaPrincipal:"mele",preparadoArmaSecundaria:"mele"};
   if(!ch.escudo)ch.escudo="No";
-  if(!ch.mods)ch.mods={pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0};
+  if(!ch.mods)ch.mods={pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0,bCMMod:0,bCDMod:0,aLigMod:0,aMedMod:0,aPesMod:0};
+  if(!ch.mods.bCMMod&&ch.mods.bCMMod!==0)ch.mods.bCMMod=0;
+  if(!ch.mods.bCDMod&&ch.mods.bCDMod!==0)ch.mods.bCDMod=0;
+  if(!ch.mods.aLigMod&&ch.mods.aLigMod!==0)ch.mods.aLigMod=0;
+  if(!ch.mods.aMedMod&&ch.mods.aMedMod!==0)ch.mods.aMedMod=0;
+  if(!ch.mods.aPesMod&&ch.mods.aPesMod!==0)ch.mods.aPesMod=0;
+  if(!ch.atkMods)ch.atkMods={manoDerecha:0,manoIzquierda:0,armaSecundaria:0,preparadoArmaPrincipal:0,preparadoArmaSecundaria:0};
   // Expand tecnicas/competencias if old save
   while(ch.tecnicas&&ch.tecnicas.length<60)ch.tecnicas.push({nombre:"",pn:"",recurso:"",notas:""});
   while(ch.competencias&&ch.competencias.length<20)ch.competencias.push({nombre:"",valor:""});
@@ -157,13 +164,14 @@ function calc(){
   const iniBase=a.AGI||0,ini=iniBase+(parseInt(m.iniMod)||0);
   const tenso=rd((a.VOL||0)/10),estresado=rd((a.VOL||0)/5);
   const paTot=ATTRIBUTES.reduce((s,at)=>s+(ab[at.key]||0),0);
-  const bCM=rd((a.AGI||0)/10),bCD=rd((a.AGI||0)/5);
+  const bCMBase=rd((a.AGI||0)/10),bCM=bCMBase+(parseInt(m.bCMMod)||0);
+  const bCDBase=rd((a.AGI||0)/5),bCD=bCDBase+(parseInt(m.bCDMod)||0);
   const pCritBase=rd((a.AGI||0)/10)+5,pCrit=pCritBase+(parseInt(m.pCritMod)||0);
   const dCritBase=rd((a.AGI||0)/5),dCrit=dCritBase+(parseInt(m.dCritMod)||0);
   const shieldBonus=ch.escudo==="Ligero"?5:ch.escudo==="Pesado"?10:0;
-  const aLig=rd((a.CM||0)/10)+rd((a.AGI||0)/5)+shieldBonus;
-  const aMed=rd((a.CM||0)/10)+rd((a.AGI||0)/10)+shieldBonus;
-  const aPes=rd((a.CM||0)/10)+shieldBonus;
+  const aLig=rd((a.CM||0)/10)+rd((a.AGI||0)/5)+shieldBonus+(parseInt(m.aLigMod)||0);
+  const aMed=rd((a.CM||0)/10)+rd((a.AGI||0)/10)+shieldBonus+(parseInt(m.aMedMod)||0);
+  const aPes=rd((a.CM||0)/10)+shieldBonus+(parseInt(m.aPesMod)||0);
   const pvR=pv-(parseInt(ch.stats.pvGast)||0),amR=afMag-(parseInt(ch.stats.amGast)||0),paR=paMax-(parseInt(ch.stats.paGast)||0),recR=rec-(parseInt(ch.stats.recursoGast)||0);
   const pnTN=parseInt(ch.pnTotales)||0,pnU=(ch.tecnicas||[]).reduce((s,t)=>s+(parseInt(t.pn)||0),0);
   // Pasivas: 50 - ATTR + competencia + mod
@@ -176,14 +184,14 @@ function calc(){
 
 function updCri(id,changes){fu(ch=>{const t=ch.initTracker||{criaturas:[],ronda:1};return{...ch,initTracker:{...t,criaturas:t.criaturas.map(c=>c.id===id?{...c,...changes}:c).sort((a,b)=>b.iniAct-a.iniAct)}}})}
 function updCriSilent(id,changes){characters=characters.map(ch=>{if(ch.id!==activeCharId)return ch;const t=ch.initTracker||{criaturas:[],ronda:1};return{...ch,initTracker:{...t,criaturas:t.criaturas.map(c=>c.id===id?{...c,...changes}:c)}}});save()}
-function getWeaponAtk(ch,slot){const comp=ch.armasComp?.[slot];const val=parseInt(comp?.valor)||0;const mode=ch.atkMode?.[slot]||"mele";const c=calc();return val-(mode==="mele"?c.bCM:c.bCD)}
+function getWeaponAtk(ch,slot){const comp=ch.armasComp?.[slot];const val=parseInt(comp?.valor)||0;const mode=ch.atkMode?.[slot]||"mele";const c=calc();const atkMod=parseInt(ch.atkMods?.[slot])||0;return val-(mode==="mele"?c.bCM:c.bCD)+atkMod}
 
 // ─── RENDER ───
 function renderGeneral(){
   const ch=gc(),f=document.createDocumentFragment();
   f.appendChild(SH("Información del Personaje"));
   const g1=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}});
-  [["Nombre","nombre"],["Especie/Raza/Edad","especie"],["Clase","clase"],["Trasfondo","trasfondo"]].forEach(([l,k])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));d.appendChild(mi(()=>ch[k],v=>ss(c=>({...c,[k]:v}))));g1.appendChild(d)});
+  [["Nombre","nombre"],["Especie/Raza/Edad","especie"],["Clase","clase"],["Trasfondo","trasfondo"]].forEach(([l,k])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));d.appendChild(mi(()=>ch[k],v=>ss(c=>({...c,[k]:v})),{shrink:true}));g1.appendChild(d)});
   f.appendChild(g1);
   const g2=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginTop:"8px"}});
   [["Nivel","nivel","number"],["Experiencia","experiencia","number"],["Tamaño","tamano"],["Velocidad","velocidad"],["P. Raciales","pRaciales"],["Defectos","defectos"]].forEach(([l,k,t])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));d.appendChild(mi(()=>ch[k],v=>ss(c=>({...c,[k]:v})),{type:t||"text"}));g2.appendChild(d)});
@@ -219,7 +227,7 @@ function renderGeneral(){
   f.appendChild(gg);
 
   // Pasivas
-  f.appendChild(SH("Percepción Pasiva"));
+  f.appendChild(SH("Pasivas"));
   f.appendChild(h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px"}},[
     SB("Percepción",()=>calc().percPas,"50-INT+Comp+Mod"),
     SB("Investigación",()=>calc().invPas,"50-INT+Comp+Mod"),
@@ -236,10 +244,12 @@ function renderGeneral(){
 function renderCombate(){
   const ch=gc(),f=document.createDocumentFragment();
   f.appendChild(SH("Ofensivas"));
-  f.appendChild(h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}},[SB("Bonif. CM",()=>calc().bCM,"AGI/10"),SB("Bonif. CD",()=>calc().bCD,"AGI/5"),SB("Prob. Crítico",()=>calc().pCrit+"%","(AGI/10)+5+Mod"),SB("Daño Crítico",()=>calc().dCrit,"AGI/5+Mod")]));
+  f.appendChild(h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}},[SB("Bonif. CM",()=>calc().bCM,"AGI/10+Mod"),SB("Bonif. CD",()=>calc().bCD,"AGI/5+Mod"),SB("Prob. Crítico",()=>calc().pCrit+"%","(AGI/10)+5+Mod"),SB("Daño Crítico",()=>calc().dCrit,"AGI/5+Mod")]));
   // Combat modifiers
   f.appendChild(h("div",{text:"MODIFICADORES COMBATE",style:{fontSize:"11px",color:"var(--gold)",fontFamily:"var(--fd)",letterSpacing:"1px",marginTop:"12px",marginBottom:"8px"}}));
   const cmg=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 12px"}});
+  cmg.appendChild(modRow("Bonif. CM","bCMMod"));
+  cmg.appendChild(modRow("Bonif. CD","bCDMod"));
   cmg.appendChild(modRow("Prob. Crít.","pCritMod"));
   cmg.appendChild(modRow("Daño Crít.","dCritMod"));
   f.appendChild(cmg);
@@ -265,6 +275,7 @@ function renderCombate(){
     const row=h("div",{class:"atk-row"});
     row.appendChild(h("span",{text:nombre,style:{fontSize:"13px",color:"var(--textBright)",flex:"1",minWidth:"80px"}}));
     row.appendChild(msel(()=>ch.atkMode?.[ws.key]||"mele",v=>{ss(c=>({...c,atkMode:{...c.atkMode,[ws.key]:v}}));render()},[{value:"mele",label:"Mele"},{value:"distancia",label:"Distancia"}],{style:{width:"90px"}}));
+    row.appendChild(mi(()=>ch.atkMods?.[ws.key]||0,v=>{ss(c=>({...c,atkMods:{...c.atkMods,[ws.key]:parseInt(v)||0}}))},{type:"number",style:{width:"50px",textAlign:"center"},placeholder:"±"}));
     const resEl=h("span",{class:"atk-result"});
     regLive(resEl,()=>{const r=getWeaponAtk(gc(),ws.key);return{text:(r>=0?"+":"")+r,color:r<=0?"var(--success)":"var(--danger)"}});
     const r0=getWeaponAtk(ch,ws.key);resEl.textContent=(r0>=0?"+":"")+r0;resEl.style.color=r0<=0?"var(--success)":"var(--danger)";
@@ -279,7 +290,12 @@ function renderCombate(){
   regLive(shieldInfo,()=>{const s=gc().escudo;return s==="Ligero"?"(+5 armaduras)":s==="Pesado"?"(+10 armaduras)":""});
   shieldInfo.textContent=ch.escudo==="Ligero"?"(+5 armaduras)":ch.escudo==="Pesado"?"(+10 armaduras)":"";
   shieldRow.appendChild(shieldInfo);f.appendChild(shieldRow);
-  f.appendChild(h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px"}},[SB("Arm. Ligera",()=>calc().aLig,"CM/10+AGI/5"),SB("Arm. Mediana",()=>calc().aMed,"CM/10+AGI/10"),SB("Arm. Pesada",()=>calc().aPes,"CM/10")]));
+  f.appendChild(h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px"}},[SB("Arm. Ligera",()=>calc().aLig,"CM/10+AGI/5+Mod"),SB("Arm. Mediana",()=>calc().aMed,"CM/10+AGI/10+Mod"),SB("Arm. Pesada",()=>calc().aPes,"CM/10+Mod")]));
+  const amg=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"4px",marginTop:"8px"}});
+  amg.appendChild(modRow("Ligera","aLigMod"));
+  amg.appendChild(modRow("Mediana","aMedMod"));
+  amg.appendChild(modRow("Pesada","aPesMod"));
+  f.appendChild(amg);
   const ex=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginTop:"8px"}});
   [["C.A. / U.D.","caUd"],["Temple","temple"]].forEach(([l,k])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px"}}));d.appendChild(mi(()=>ch[k]||"",v=>ss(c=>({...c,[k]:v}))));ex.appendChild(d)});
   f.appendChild(ex);

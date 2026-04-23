@@ -55,7 +55,7 @@ const rd=n=>Math.round(n);
 const COMP_LEVELS=[{key:"sinPracticar",label:"Sin practicar",defaultVal:10},{key:"practicado",label:"Practicado",defaultVal:0},{key:"entrenado",label:"Entrenado",defaultVal:-10},{key:"experto",label:"Experto",defaultVal:-20}];
 const COMP_DEFAULTS=Object.fromEntries(COMP_LEVELS.map(c=>[c.key,c.defaultVal]));
 const WEAPON_SLOTS=[{key:"manoDerecha",label:"Mano Derecha"},{key:"manoIzquierda",label:"Mano Izquierda"},{key:"armaSecundaria",label:"Arma Secundaria"}];
-const PREPARED_SLOTS=[{key:"preparadoArmaPrincipal",label:"Arma Principal Prep."},{key:"preparadoArmaSecundaria",label:"Arma Secundaria Prep."}];
+const PREPARED_SLOTS=[{key:"preparadoArmaPrincipal",label:"Arma Principal Prep."}];
 const ALL_WEAPON_SLOTS=[...WEAPON_SLOTS,...PREPARED_SLOTS];
 const SHIELD_OPTIONS=["No","Ligero","Pesado"];
 

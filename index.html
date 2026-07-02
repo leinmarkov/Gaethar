@@ -84,6 +84,11 @@ const RESISTANCES=["Fuego","Hielo","Eléctrico","Arcano","Sombra","Radiante","As
 const DOTES_LEVELS=["Defecto","Nivel 4","Nivel 8","Nivel 12","Nivel 16","Nivel 20"];
 const TABS=[{key:"general",label:"General",icon:"⚔"},{key:"combate",label:"Combate",icon:"🛡"},{key:"habilidades",label:"Habilid.",icon:"📜"},{key:"equipo",label:"Equipo",icon:"🎒"},{key:"tecnicas",label:"Técnicas",icon:"✨"},{key:"estado",label:"Estado",icon:"💀"},{key:"iniciativa",label:"Iniciativa",icon:"⚡"},{key:"notas",label:"Notas",icon:"📝"}];
 const rd=n=>Math.round(n);
+const AGE_DATA={Joven:{atr:260,pn1:17,pnPer:7},Adulto:{atr:310,pn1:15,pnPer:5},Anciano:{atr:310,pn1:15,pnPer:5}};
+const clampNiv=n=>Math.max(1,Math.min(20,parseInt(n)||1));
+function atrExtra(niv){let e=0;for(let L=2;L<=niv;L++)e+=(L%2===0?10:5);return e}
+function atrBudget(edad,niv){const d=AGE_DATA[edad]||AGE_DATA.Adulto;niv=clampNiv(niv);return d.atr+atrExtra(niv)}
+function pnSugerido(edad,niv){const d=AGE_DATA[edad]||AGE_DATA.Adulto;niv=clampNiv(niv);return d.pn1+d.pnPer*(niv-1)}
 const COMP_LEVELS=[{key:"sinPracticar",label:"Sin practicar",defaultVal:10},{key:"practicado",label:"Practicado",defaultVal:0},{key:"entrenado",label:"Entrenado",defaultVal:-10},{key:"experto",label:"Experto",defaultVal:-20}];
 const COMP_DEFAULTS=Object.fromEntries(COMP_LEVELS.map(c=>[c.key,c.defaultVal]));
 const WEAPON_SLOTS=[{key:"manoDerecha",label:"Mano Derecha"},{key:"manoIzquierda",label:"Mano Izquierda"},{key:"armaSecundaria",label:"Arma Secundaria"}];
@@ -93,7 +98,7 @@ const SHIELD_OPTIONS=["No","Ligero","Pesado"];
 
 let _uid=0;function uid(){return Date.now().toString(36)+"_"+(++_uid)}
 
-function emptyChar(){return{id:uid(),nombre:"",especie:"",clase:"",trasfondo:"",defectos:"",nivel:1,experiencia:0,tamano:"",velocidad:"",pRaciales:"",attrs:{FUE:10,AGI:10,CON:10,INT:10,VOL:10,CM:10,CD:10},attrsActual:{FUE:10,AGI:10,CON:10,INT:10,VOL:10,CM:10,CD:10},stats:{pvGast:0,amGast:0,paGast:0,recursoGast:0,estresActual:0},
+function emptyChar(){return{id:uid(),nombre:"",especie:"",clase:"",trasfondo:"",defectos:"",nivel:1,edad:"Adulto",experiencia:0,tamano:"",velocidad:"",pRaciales:"",attrs:{FUE:10,AGI:10,CON:10,INT:10,VOL:10,CM:10,CD:10},attrsActual:{FUE:10,AGI:10,CON:10,INT:10,VOL:10,CM:10,CD:10},stats:{pvGast:0,amGast:0,paGast:0,recursoGast:0,estresActual:0},
 mods:{pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0,bCMMod:0,bCDMod:0,aLigMod:0,aMedMod:0,aPesMod:0},
 atkMods:{manoDerecha:0,manoIzquierda:0,armaSecundaria:0,preparadoArmaPrincipal:0,preparadoArmaSecundaria:0},
 skills:Object.fromEntries(SKILLS.map(s=>[s.name,{nivel:"sinPracticar",valor:10}])),
@@ -118,6 +123,7 @@ function gc(){
   if(!ch.armasComp)ch.armasComp={manoDerecha:{nivel:"sinPracticar",valor:10},manoIzquierda:{nivel:"sinPracticar",valor:10},armaSecundaria:{nivel:"sinPracticar",valor:10},preparadoArmaPrincipal:{nivel:"sinPracticar",valor:10},preparadoArmaSecundaria:{nivel:"sinPracticar",valor:10}};
   if(!ch.atkMode)ch.atkMode={manoDerecha:"mele",manoIzquierda:"mele",armaSecundaria:"mele",preparadoArmaPrincipal:"mele",preparadoArmaSecundaria:"mele"};
   if(!ch.escudo)ch.escudo="No";
+  if(!ch.edad)ch.edad="Adulto";
   if(!ch.mods)ch.mods={pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0,bCMMod:0,bCDMod:0,aLigMod:0,aMedMod:0,aPesMod:0};
   if(!ch.mods.bCMMod&&ch.mods.bCMMod!==0)ch.mods.bCMMod=0;
   if(!ch.mods.bCDMod&&ch.mods.bCDMod!==0)ch.mods.bCDMod=0;
@@ -223,17 +229,23 @@ function renderGeneral(){
   const ch=gc(),f=document.createDocumentFragment();
   f.appendChild(SH("Información del Personaje"));
   const g1=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}});
-  [["Nombre","nombre"],["Especie/Raza/Edad","especie"],["Clase","clase"],["Trasfondo","trasfondo"]].forEach(([l,k])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));d.appendChild(mi(()=>ch[k],v=>ss(c=>({...c,[k]:v})),{shrink:true}));g1.appendChild(d)});
+  [["Nombre","nombre"],["Especie/Raza","especie"],["Clase","clase"],["Trasfondo","trasfondo"]].forEach(([l,k])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));d.appendChild(mi(()=>ch[k],v=>ss(c=>({...c,[k]:v})),{shrink:true}));g1.appendChild(d)});
   f.appendChild(g1);
   const g2=h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginTop:"8px"}});
-  [["Nivel","nivel","number"],["Experiencia","experiencia","number"],["Tamaño","tamano"],["Velocidad","velocidad"],["P. Raciales","pRaciales"],["Defectos","defectos"]].forEach(([l,k,t])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));d.appendChild(mi(()=>ch[k],v=>ss(c=>({...c,[k]:v})),{type:t||"text"}));g2.appendChild(d)});
+  [["Nivel","nivel","level"],["Edad","edad","age"],["Experiencia","experiencia","number"],["Tamaño","tamano"],["Velocidad","velocidad"],["P. Raciales","pRaciales"],["Defectos","defectos"]].forEach(([l,k,t])=>{const d=h("div");d.appendChild(h("div",{text:l,style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"2px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));let ctrl;if(t==="level"){ctrl=msel(()=>String(ch.nivel||1),v=>{ss(c=>({...c,nivel:parseInt(v)||1}));render()},Array.from({length:20},(_,i)=>({value:String(i+1),label:String(i+1)})));}else if(t==="age"){ctrl=msel(()=>ch.edad||"Adulto",v=>{ss(c=>({...c,edad:v}));render()},["Joven","Adulto","Anciano"]);}else{ctrl=mi(()=>ch[k],v=>ss(c=>({...c,[k]:v})),{type:t||"text"});}d.appendChild(ctrl);g2.appendChild(d)});
   f.appendChild(g2);
 
   f.appendChild(SH("Atributos"));
   const tbl=document.createElement("table");tbl.innerHTML='<thead><tr><th>Atributo</th><th>Base</th><th>Actual</th></tr></thead>';
   const tb=document.createElement("tbody");
   ATTRIBUTES.forEach(at=>{const tr=document.createElement("tr");const td1=document.createElement("td");td1.innerHTML='<span style="color:var(--gold);font-family:var(--fd);font-size:12px">'+at.label+'</span> <span style="color:var(--textDim);font-size:11px">('+at.key+')</span>';const td2=document.createElement("td");td2.style.textAlign="center";td2.appendChild(mi(()=>ch.attrs[at.key],v=>ss(c=>({...c,attrs:{...c.attrs,[at.key]:parseInt(v)||0}})),{type:"number",style:{textAlign:"center",width:"60px"}}));const td3=document.createElement("td");td3.style.textAlign="center";td3.appendChild(mi(()=>ch.attrsActual[at.key],v=>ss(c=>({...c,attrsActual:{...c.attrsActual,[at.key]:parseInt(v)||0}})),{type:"number",style:{textAlign:"center",width:"60px"}}));tr.append(td1,td2,td3);tb.appendChild(tr)});
-  const trT=document.createElement("tr");const tdL=document.createElement("td");tdL.style.cssText="font-family:var(--fd);color:var(--goldBright);padding:6px 8px";tdL.textContent="PA Totales";const tdR=document.createElement("td");tdR.colSpan=2;tdR.style.cssText="text-align:center;color:var(--goldBright);font-family:var(--fd);font-size:18px;padding:6px 8px";const paTotEl=h("span");regLive(paTotEl,()=>String(calc().paTot));paTotEl.textContent=String(calc().paTot);tdR.appendChild(paTotEl);tdR.appendChild(h("div",{text:"suma de Base",style:{fontSize:"10px",color:"var(--textDim)"}}));trT.append(tdL,tdR);tb.appendChild(trT);tbl.appendChild(tb);f.appendChild(tbl);
+  tbl.appendChild(tb);f.appendChild(tbl);
+  const budBox=h("div",{style:{display:"flex",gap:"8px",marginTop:"10px",padding:"10px 12px",background:"rgba(203,169,79,.07)",border:"1px solid var(--goldDim)",borderRadius:"6px",justifyContent:"space-around",textAlign:"center"}});
+  function budCell(label,fn){const d=h("div");d.appendChild(h("div",{text:label,style:{fontSize:"10px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"2px"}}));const v=h("div",{style:{fontSize:"17px",fontFamily:"var(--fd)",fontWeight:"700"}});const r=fn();if(typeof r==="object"){v.textContent=r.text;v.style.color=r.color;}else{v.textContent=String(r);v.style.color="var(--goldBright)";}regLive(v,fn);d.appendChild(v);return d;}
+  budBox.appendChild(budCell("Disponibles",()=>String(atrBudget(gc().edad,gc().nivel))));
+  budBox.appendChild(budCell("Usados",()=>String(calc().paTot)));
+  budBox.appendChild(budCell("Restantes",()=>{const g=gc();const r=atrBudget(g.edad,g.nivel)-calc().paTot;return{text:String(r),color:r<0?"var(--danger)":r===0?"var(--goldBright)":"var(--success)"};}));
+  f.appendChild(budBox);
 
   f.appendChild(SH("Estadísticas"));
   f.appendChild(h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px"}},[
@@ -392,6 +404,12 @@ function renderTecnicas(){
   regLive(pnBox,()=>{const c=calc();return{text:String(c.pnR),color:c.pnR<0?"var(--danger)":"var(--goldBright)"}});
   const c0=calc();pnBox.textContent=String(c0.pnR);pnBox.style.color=c0.pnR<0?"var(--danger)":"var(--goldBright)";
   d2.appendChild(pnBox);pr.appendChild(d2);f.appendChild(pr);
+  const sug=h("div",{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"14px",marginTop:"-6px"}});
+  const sugTxt=h("span",{style:{fontSize:"11px",color:"var(--textDim)"}});
+  const sugFn=()=>{const g=gc();return "Sugerido para "+(g.edad||"Adulto")+" Nv"+clampNiv(g.nivel)+": "+pnSugerido(g.edad,g.nivel)+" P.N.";};
+  sugTxt.textContent=sugFn();regLive(sugTxt,sugFn);
+  const apply=h("button",{class:"btn-blue",text:"Aplicar",style:{width:"auto",padding:"5px 14px",fontSize:"11px",flex:"0 0 auto"},onclick:()=>{const g=gc();ss({pnTotales:pnSugerido(g.edad,g.nivel)});render();}});
+  sug.appendChild(sugTxt);sug.appendChild(apply);f.appendChild(sug);
   const hd=h("div",{style:{display:"grid",gridTemplateColumns:"24px 1fr 50px 60px",gap:"4px",marginBottom:"6px"}});
   hd.appendChild(h("span"));hd.appendChild(h("span",{class:"col-h",text:"NOMBRE"}));hd.appendChild(h("span",{class:"col-h",text:"PN"}));hd.appendChild(h("span",{class:"col-h",text:"REC."}));f.appendChild(hd);
   ch.tecnicas.forEach((t,i)=>{const row=h("div",{style:{display:"grid",gridTemplateColumns:"24px 1fr 50px 60px",gap:"4px",marginBottom:"3px",alignItems:"center"}});row.appendChild(h("span",{text:String(i+1),style:{fontSize:"11px",color:"var(--textDim)",textAlign:"center"}}));row.appendChild(mi(()=>t.nombre,v=>{const a=[...gc().tecnicas];a[i]={...a[i],nombre:v};ss({tecnicas:a})},{shrink:true}));row.appendChild(mi(()=>t.pn,v=>{const a=[...gc().tecnicas];a[i]={...a[i],pn:v};ss({tecnicas:a})},{style:{textAlign:"center"}}));row.appendChild(mi(()=>t.recurso,v=>{const a=[...gc().tecnicas];a[i]={...a[i],recurso:v};ss({tecnicas:a})},{style:{textAlign:"center"}}));f.appendChild(row)});

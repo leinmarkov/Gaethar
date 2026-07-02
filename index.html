@@ -4,6 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Gaethar — Hoja de Personaje</title>
+<meta name="theme-color" content="#13100b"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -16,16 +19,12 @@
   --shadow:0 2px 6px rgba(0,0,0,.45);--glow:0 0 9px rgba(240,217,138,.22)
 }
 html{scrollbar-color:var(--goldDim) var(--bg);scrollbar-width:thin}
-body{
-  font-family:var(--fn);color:var(--text);min-height:100vh;line-height:1.45;
-  background:
+body{font-family:var(--fn);color:var(--text);min-height:100vh;line-height:1.45;background:var(--bg)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:
     radial-gradient(130% 90% at 50% -12%, rgba(203,169,79,.06), transparent 55%),
-    radial-gradient(120% 120% at 50% 100%, rgba(0,0,0,.55), transparent 60%),
-    var(--bg);
-  background-attachment:fixed;
-}
+    radial-gradient(120% 120% at 50% 100%, rgba(0,0,0,.55), transparent 60%)}
 body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-#app{max-width:600px;margin:0 auto;position:relative}
+#app{max-width:600px;margin:0 auto;position:relative;z-index:1}
 ::selection{background:rgba(203,169,79,.32);color:var(--textBright)}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-track{background:var(--bg)}
@@ -112,6 +111,8 @@ mochila:"",dotes:Object.fromEntries(DOTES_LEVELS.map(l=>[l,""])),tecnicas:Array.
 let characters=[],activeCharId=null,currentTab="general",showManager=false;
 let newCri={nombre:"",iniciativa:"",pvTotal:"",paTotal:""};
 let iniPending={};
+let tecExtra=3,tecOpen={},respMin=30,_scrollTopNext=false;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let liveEls=[];
 function regLive(el,fn){liveEls.push({el,fn})}
 function refreshLive(){for(const{el,fn}of liveEls){const r=fn();if(typeof r==="object"){if(el.textContent!==r.text)el.textContent=r.text;if(r.color&&el.style.color!==r.color)el.style.color=r.color}else{const s=String(r);if(el.textContent!==s)el.textContent=s}}}
@@ -169,7 +170,7 @@ function mta(getter,setter,opts={}){
   return el;
 }
 
-function h(tag,a={},ch=[]){const el=document.createElement(tag);if(a.class)el.className=a.class;if(a.style)Object.assign(el.style,a.style);if(a.text!=null)el.textContent=a.text;if(a.html)el.innerHTML=a.html;if(a.onclick)el.addEventListener("click",a.onclick);for(const c of(Array.isArray(ch)?ch:[])){if(c instanceof Node)el.appendChild(c);else if(typeof c==="string")el.appendChild(document.createTextNode(c))}return el}
+function h(tag,a={},ch=[]){const el=document.createElement(tag);if(a.class)el.className=a.class;if(a.style)Object.assign(el.style,a.style);if(a.text!=null)el.textContent=a.text;if(a.html)el.innerHTML=a.html;if(a.onclick)el.addEventListener("click",a.onclick);if(a.attrs)for(const k in a.attrs)el.setAttribute(k,a.attrs[k]);for(const c of(Array.isArray(ch)?ch:[])){if(c instanceof Node)el.appendChild(c);else if(typeof c==="string")el.appendChild(document.createTextNode(c))}return el}
 function SH(t){return h("div",{class:"sh",text:t})}
 function SB(l,valueFn,s){
   const d=h("div",{class:"sb"},[h("div",{class:"sb-label",text:l})]);
@@ -188,8 +189,9 @@ function addNew(){const n=emptyChar();n.nombre="Nuevo Personaje";characters.push
 function resetChar(){if(!confirm("¿Limpiar todos los campos del personaje actual?"))return;const old=gc();const fresh=emptyChar();fresh.id=old.id;characters=characters.map(c=>c.id===activeCharId?fresh:c);save();render()}
 function delChar(id){if(characters.length<=1)return;characters=characters.filter(c=>c.id!==id);if(activeCharId===id)activeCharId=characters[0].id;save();render()}
 function dupChar(id){const o=characters.find(c=>c.id===id);if(!o)return;characters.push({...JSON.parse(JSON.stringify(o)),id:uid(),nombre:o.nombre+" (copia)"});save();render()}
-function expChar(id){const c=characters.find(x=>x.id===id);if(!c)return;const b=new Blob([JSON.stringify(c,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const l=document.createElement("a");l.href=u;l.download=(c.nombre||"personaje")+".gaethar.json";l.click();URL.revokeObjectURL(u)}
-function impChar(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);d.id=uid();characters.push({...emptyChar(),...d});activeCharId=d.id;showManager=false;save();render()}catch{alert("Error al importar")}};r.readAsText(f);e.target.value=""}
+function expChar(id){const c=characters.find(x=>x.id===id);if(!c)return;const b=new Blob([JSON.stringify({schemaVersion:1,...c},null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const l=document.createElement("a");l.href=u;l.download=(c.nombre||"personaje")+".gaethar.json";l.click();URL.revokeObjectURL(u)}
+function impChar(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);const list=Array.isArray(d)?d:(d&&Array.isArray(d.characters)?d.characters:[d]);if(!list.length)throw 0;list.forEach(x=>{const n={...emptyChar(),...x,id:uid()};delete n.schemaVersion;delete n.exportedAt;characters.push(n);activeCharId=n.id});showManager=false;save();render()}catch{alert("Error al importar")}};r.readAsText(f);e.target.value=""}
+function expAll(){const b=new Blob([JSON.stringify({schemaVersion:1,exportedAt:new Date().toISOString(),characters},null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const l=document.createElement("a");l.href=u;l.download="gaethar_respaldo_"+new Date().toISOString().slice(0,10)+".json";l.click();URL.revokeObjectURL(u);try{localStorage.setItem("gaethar_lastBackup",String(Date.now()))}catch{}render()}
 
 function getSkillVal(ch,name){const sk=ch.skills?.[name];return typeof sk==="object"?parseInt(sk.valor)||0:parseInt(sk)||0}
 
@@ -270,6 +272,19 @@ function renderGeneral(){
   [["P.V. Gastados","pvGast"],["Af.Mág. Gastados","amGast"],["P.A. Gastados","paGast"],["Recurso Gastado","recursoGast"],["Estrés Actual","estresActual"]].forEach(([l,k])=>{const row=h("div",{style:{display:"flex",alignItems:"center",gap:"6px"}});row.appendChild(h("span",{text:l,style:{fontSize:"11px",color:"var(--textDim)",minWidth:"100px"}}));row.appendChild(mi(()=>ch.stats[k],v=>ss(c=>({...c,stats:{...c.stats,[k]:v}})),{type:"number",style:{textAlign:"center",width:"60px"}}));gg.appendChild(row)});
   f.appendChild(gg);
 
+  // Descanso
+  const rest=h("div",{style:{display:"flex",gap:"8px",marginTop:"12px",alignItems:"center",flexWrap:"wrap"}});
+  rest.appendChild(h("button",{class:"btn-blue",text:"☕ Respiro",style:{width:"auto",padding:"8px 14px",fontSize:"12px"},onclick:()=>{
+    const mins=respMin,recG=Math.floor(mins/10)*2;
+    ss(c=>({...c,stats:{...c.stats,recursoGast:Math.max(0,(parseInt(c.stats.recursoGast)||0)-recG),estresActual:Math.max(0,(parseInt(c.stats.estresActual)||0)-(mins>=30?1:0))}}));render()}}));
+  rest.appendChild(msel(()=>String(respMin),v=>{respMin=parseInt(v)||10},[10,20,30,40,50,60].map(n=>({value:String(n),label:n+" min"})),{style:{width:"80px"}}));
+  rest.appendChild(h("button",{class:"btn-blue",text:"🌙 Reposo",style:{width:"auto",padding:"8px 14px",fontSize:"12px"},onclick:()=>{
+    ss(c=>({...c,stats:{...c.stats,pvGast:0,recursoGast:0,paGast:0,estresActual:Math.max(0,(parseInt(c.stats.estresActual)||0)-5)}}));render()}}));
+  rest.appendChild(h("button",{class:"btn-blue",text:"🏠 Reposo Seguro",style:{width:"auto",padding:"8px 14px",fontSize:"12px"},onclick:()=>{
+    ss(c=>({...c,stats:{...c.stats,pvGast:0,recursoGast:0,paGast:0,estresActual:Math.max(0,(parseInt(c.stats.estresActual)||0)-10)}}));render()}}));
+  f.appendChild(rest);
+  f.appendChild(h("div",{text:"Respiro: +2 Recurso por cada 10 min (máx 1 h), −1 Estrés si dura ≥30 min. Reposo: recupera todos los P.V. y Recurso, −5 Estrés (−10 en lugar seguro).",style:{fontSize:"10px",color:"var(--textDim)",marginTop:"5px",lineHeight:"1.5"}}));
+
   // Pasivas
   f.appendChild(SH("Pasivas"));
   f.appendChild(h("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px"}},[
@@ -305,7 +320,7 @@ function renderCombate(){
     const comp=ch.armasComp?.[ws.key]||{nivel:"sinPracticar",valor:10};
     const compLabel=COMP_LEVELS.find(c=>c.key===comp.nivel)?.label||"Sin practicar";
     const card=h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"var(--bgInput)",border:"1px solid var(--border)",borderRadius:"4px",marginBottom:"4px"}});
-    card.appendChild(h("div",{html:'<span style="color:var(--textBright);font-size:13px">'+nombre+'</span><br><span style="color:var(--textDim);font-size:11px">'+ws.label+' • '+compLabel+'</span>'}));
+    card.appendChild(h("div",{html:'<span style="color:var(--textBright);font-size:13px">'+esc(nombre)+'</span><br><span style="color:var(--textDim);font-size:11px">'+ws.label+' • '+compLabel+'</span>'}));
     const valEl=h("span",{style:{fontSize:"14px",color:"var(--goldBright)",fontFamily:"var(--fd)",fontWeight:"700"}});
     regLive(valEl,()=>{const v=parseInt(gc().armasComp?.[ws.key]?.valor)||0;return(v>=0?"+":"")+v});
     valEl.textContent=((parseInt(comp.valor)||0)>=0?"+":"")+(parseInt(comp.valor)||0);
@@ -323,7 +338,15 @@ function renderCombate(){
     const resEl=h("span",{class:"atk-result"});
     regLive(resEl,()=>{const r=getWeaponAtk(gc(),ws.key);return{text:(r>=0?"+":"")+r,color:r<=0?"var(--success)":"var(--danger)"}});
     const r0=getWeaponAtk(ch,ws.key);resEl.textContent=(r0>=0?"+":"")+r0;resEl.style.color=r0<=0?"var(--success)":"var(--danger)";
-    row.appendChild(resEl);f.appendChild(row);
+    row.appendChild(resEl);
+    const rollOut=h("span",{style:{fontSize:"13px",fontFamily:"var(--fd)",flexBasis:"100%",textAlign:"right",minHeight:"0"}});
+    row.appendChild(h("button",{text:"🎲 d100",class:"btn-blue",style:{width:"auto",padding:"6px 12px",fontSize:"11px"},attrs:{"aria-label":"Tirar 1d100 para "+nombre},onclick:()=>{
+      const nat=Math.floor(Math.random()*100)+1,mod=getWeaponAtk(gc(),ws.key),tot=nat+mod,crit=nat<=calc().pCrit;
+      rollOut.textContent="d100: "+nat+(mod!==0?(mod>0?" + "+mod:" − "+Math.abs(mod))+" = "+tot:"")+(crit?"  ✦ ¡CRÍTICO!":"");
+      rollOut.style.color=crit?"var(--goldBright)":"var(--textBright)";
+      rollOut.style.textShadow=crit?"0 0 9px rgba(240,217,138,.65)":"none";
+    }}));
+    row.appendChild(rollOut);f.appendChild(row);
   });
 
   f.appendChild(SH("Defensivas"));
@@ -410,9 +433,21 @@ function renderTecnicas(){
   sugTxt.textContent=sugFn();regLive(sugTxt,sugFn);
   const apply=h("button",{class:"btn-blue",text:"Aplicar",style:{width:"auto",padding:"5px 14px",fontSize:"11px",flex:"0 0 auto"},onclick:()=>{const g=gc();ss({pnTotales:pnSugerido(g.edad,g.nivel)});render();}});
   sug.appendChild(sugTxt);sug.appendChild(apply);f.appendChild(sug);
-  const hd=h("div",{style:{display:"grid",gridTemplateColumns:"24px 1fr 50px 60px",gap:"4px",marginBottom:"6px"}});
-  hd.appendChild(h("span"));hd.appendChild(h("span",{class:"col-h",text:"NOMBRE"}));hd.appendChild(h("span",{class:"col-h",text:"PN"}));hd.appendChild(h("span",{class:"col-h",text:"REC."}));f.appendChild(hd);
-  ch.tecnicas.forEach((t,i)=>{const row=h("div",{style:{display:"grid",gridTemplateColumns:"24px 1fr 50px 60px",gap:"4px",marginBottom:"3px",alignItems:"center"}});row.appendChild(h("span",{text:String(i+1),style:{fontSize:"11px",color:"var(--textDim)",textAlign:"center"}}));row.appendChild(mi(()=>t.nombre,v=>{const a=[...gc().tecnicas];a[i]={...a[i],nombre:v};ss({tecnicas:a})},{shrink:true}));row.appendChild(mi(()=>t.pn,v=>{const a=[...gc().tecnicas];a[i]={...a[i],pn:v};ss({tecnicas:a})},{style:{textAlign:"center"}}));row.appendChild(mi(()=>t.recurso,v=>{const a=[...gc().tecnicas];a[i]={...a[i],recurso:v};ss({tecnicas:a})},{style:{textAlign:"center"}}));f.appendChild(row)});
+  const hd=h("div",{style:{display:"grid",gridTemplateColumns:"24px 1fr 50px 60px 30px",gap:"4px",marginBottom:"6px"}});
+  hd.appendChild(h("span"));hd.appendChild(h("span",{class:"col-h",text:"NOMBRE"}));hd.appendChild(h("span",{class:"col-h",text:"PN"}));hd.appendChild(h("span",{class:"col-h",text:"REC."}));hd.appendChild(h("span"));f.appendChild(hd);
+  const tFilled=t=>t&&(t.nombre||t.pn||t.recurso||t.notas);let tBlanks=0;
+  ch.tecnicas.forEach((t,i)=>{
+    if(!tFilled(t)&&!tecOpen[i]){if(tBlanks>=tecExtra)return;tBlanks++;}
+    const row=h("div",{style:{display:"grid",gridTemplateColumns:"24px 1fr 50px 60px 30px",gap:"4px",marginBottom:"3px",alignItems:"center"}});
+    row.appendChild(h("span",{text:String(i+1),style:{fontSize:"11px",color:"var(--textDim)",textAlign:"center"}}));
+    row.appendChild(mi(()=>t.nombre,v=>{const a=[...gc().tecnicas];a[i]={...a[i],nombre:v};ss({tecnicas:a})},{shrink:true}));
+    row.appendChild(mi(()=>t.pn,v=>{const a=[...gc().tecnicas];a[i]={...a[i],pn:v};ss({tecnicas:a})},{style:{textAlign:"center"}}));
+    row.appendChild(mi(()=>t.recurso,v=>{const a=[...gc().tecnicas];a[i]={...a[i],recurso:v};ss({tecnicas:a})},{style:{textAlign:"center"}}));
+    row.appendChild(h("button",{text:tecOpen[i]?"▾":"📝",style:{background:"transparent",border:"1px solid "+(t.notas?"var(--goldDim)":"var(--border)"),borderRadius:"4px",color:t.notas?"var(--gold)":"var(--textDim)",height:"30px",cursor:"pointer",fontSize:"12px"},attrs:{"aria-label":"Notas de la técnica "+(i+1)},onclick:()=>{tecOpen[i]=!tecOpen[i];render()}}));
+    f.appendChild(row);
+    if(tecOpen[i])f.appendChild(mta(()=>gc().tecnicas[i].notas||"",v=>{const a=[...gc().tecnicas];a[i]={...a[i],notas:v};ss({tecnicas:a})},{rows:2,placeholder:"Notas de la técnica...",style:{marginBottom:"6px",fontSize:"12px",padding:"8px"}}));
+  });
+  f.appendChild(h("button",{text:"＋ Mostrar 5 filas más",style:{background:"transparent",border:"1px dashed var(--goldDim)",borderRadius:"6px",color:"var(--gold)",padding:"8px",width:"100%",marginTop:"6px",cursor:"pointer",fontFamily:"var(--fd)",fontSize:"11px",letterSpacing:"1px"},onclick:()=>{tecExtra+=5;render()}}));
   return f;
 }
 
@@ -461,7 +496,7 @@ function renderIniciativa(){
     hl.appendChild(h("span",{text:String(idx+1),style:{fontFamily:"var(--fd)",color:"var(--textBright)",fontSize:"15px"}}));
     if(isFirst)hl.appendChild(h("span",{text:"TURNO ACTUAL",style:{background:"var(--success)",color:"#fff",fontSize:"10px",padding:"2px 8px",borderRadius:"4px",fontFamily:"var(--fd)",letterSpacing:"1px"}}));
     hl.appendChild(h("span",{text:cr.nombre,style:{fontFamily:"var(--fd)",color:"var(--textBright)",fontSize:"14px"}}));
-    hdr.appendChild(hl);hdr.appendChild(h("button",{html:"🗑",style:{background:"transparent",border:"none",color:"var(--danger)",fontSize:"18px",cursor:"pointer"},onclick:()=>{delete iniPending[cr.id];fu(ch=>{const t=ch.initTracker||{criaturas:[],ronda:1};return{...ch,initTracker:{...t,criaturas:t.criaturas.filter(c=>c.id!==cr.id)}}})}}));
+    hdr.appendChild(hl);hdr.appendChild(h("button",{html:"🗑",attrs:{"aria-label":"Eliminar criatura "+cr.nombre,title:"Eliminar criatura"},style:{background:"transparent",border:"none",color:"var(--danger)",fontSize:"18px",cursor:"pointer"},onclick:()=>{delete iniPending[cr.id];fu(ch=>{const t=ch.initTracker||{criaturas:[],ronda:1};return{...ch,initTracker:{...t,criaturas:t.criaturas.filter(c=>c.id!==cr.id)}}})}}));
     card.appendChild(hdr);
 
     const is=h("div",{style:{marginBottom:"12px"}});is.appendChild(h("div",{text:"Iniciativa",style:{fontSize:"11px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"4px"}}));
@@ -507,31 +542,36 @@ function renderNotas(){
 const tabR={general:renderGeneral,combate:renderCombate,habilidades:renderHabilidades,equipo:renderEquipo,tecnicas:renderTecnicas,estado:renderEstado,iniciativa:renderIniciativa,notas:renderNotas};
 
 function render(){
-  liveEls=[];const app=document.getElementById("app");app.innerHTML="";const ch=gc();
+  const _sy=window.scrollY;liveEls=[];const app=document.getElementById("app");app.innerHTML="";const ch=gc();
   const header=h("div",{class:"header"});
   const ht=h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
   const td=h("div");td.appendChild(h("h1",{text:"Gaethar",style:{fontFamily:"var(--fd)",fontSize:"18px",color:"var(--gold)",margin:"0",letterSpacing:"3px",textTransform:"uppercase"}}));td.appendChild(h("div",{text:"HOJA DE PERSONAJE",style:{fontSize:"10px",color:"var(--textDim)",letterSpacing:"2px",fontFamily:"var(--fd)"}}));
-  ht.appendChild(td);ht.appendChild(h("button",{text:showManager?"✕ Cerrar":"☰ Personajes",style:{background:"var(--bgInput)",border:"1px solid var(--border)",borderRadius:"6px",color:"var(--gold)",padding:"6px 12px",fontFamily:"var(--fd)",fontSize:"11px",cursor:"pointer",letterSpacing:"1px"},onclick:()=>{showManager=!showManager;render()}}));
+  ht.appendChild(td);ht.appendChild(h("button",{text:showManager?"✕ Cerrar":"☰ Personajes",style:{background:"var(--bgInput)",border:"1px solid var(--border)",borderRadius:"6px",color:"var(--gold)",padding:"6px 12px",fontFamily:"var(--fd)",fontSize:"11px",cursor:"pointer",letterSpacing:"1px"},onclick:()=>{showManager=!showManager;_scrollTopNext=true;render()}}));
   header.appendChild(ht);
   if(!showManager){
-    const ci=h("div");ci.innerHTML='<span style="font-size:14px;color:var(--textBright);font-family:var(--fd)">'+(ch.nombre||"Sin nombre")+'</span><span style="color:var(--textDim);font-size:11px;margin-left:8px">Niv. '+(ch.nivel||1)+(ch.clase?" • "+ch.clase:"")+'</span>';header.appendChild(ci);
-    const tbr=h("div",{style:{display:"flex",gap:"2px",marginTop:"10px",overflowX:"auto",paddingBottom:"2px"}});TABS.forEach(t=>tbr.appendChild(h("button",{class:"tab-btn"+(currentTab===t.key?" active":""),text:t.icon+" "+t.label,onclick:()=>{currentTab=t.key;render()}})));header.appendChild(tbr);
+    const ci=h("div");ci.innerHTML='<span style="font-size:14px;color:var(--textBright);font-family:var(--fd)">'+esc(ch.nombre||"Sin nombre")+'</span><span style="color:var(--textDim);font-size:11px;margin-left:8px">Niv. '+(parseInt(ch.nivel)||1)+(ch.clase?" • "+esc(ch.clase):"")+'</span>';header.appendChild(ci);
+    const tbr=h("div",{style:{display:"flex",gap:"2px",marginTop:"10px",overflowX:"auto",paddingBottom:"2px"}});TABS.forEach(t=>tbr.appendChild(h("button",{class:"tab-btn"+(currentTab===t.key?" active":""),text:t.icon+" "+t.label,onclick:()=>{currentTab=t.key;_scrollTopNext=true;render()}})));header.appendChild(tbr);
   }
   app.appendChild(header);
   if(showManager){
     const mg=h("div",{style:{padding:"16px"}});mg.appendChild(SH("Personajes Guardados"));
+    const _lb=parseInt(localStorage.getItem("gaethar_lastBackup"))||0,_days=_lb?Math.floor((Date.now()-_lb)/864e5):null;
+    if(_days===null||_days>=14)mg.appendChild(h("div",{text:_days===null?"⚠ Nunca has respaldado tus personajes. Los datos viven solo en este navegador — usa «Respaldar todo» de vez en cuando.":"⚠ Último respaldo: hace "+_days+" días.",style:{fontSize:"11px",color:"var(--gold)",marginBottom:"10px",padding:"8px 10px",border:"1px solid var(--goldDim)",borderRadius:"6px",background:"rgba(203,169,79,.06)",lineHeight:"1.5"}}));
     characters.forEach(c=>{const cd=h("div",{style:{background:c.id===activeCharId?"rgba(201,162,39,.07)":"var(--bgCard)",border:"1px solid "+(c.id===activeCharId?"var(--goldDim)":"var(--border)"),borderRadius:"6px",padding:"12px",marginBottom:"8px"}});const inf=h("div",{style:{cursor:"pointer",marginBottom:"8px"},onclick:()=>{activeCharId=c.id;showManager=false;save();render()}});inf.appendChild(h("div",{text:c.nombre||"Sin nombre",style:{color:"var(--goldBright)",fontFamily:"var(--fd)",fontSize:"14px"}}));inf.appendChild(h("div",{text:"Niv. "+(c.nivel||1)+(c.clase?" • "+c.clase:"")+(c.especie?" • "+c.especie:""),style:{color:"var(--textDim)",fontSize:"11px"}}));cd.appendChild(inf);
     const bt=h("div",{style:{display:"flex",gap:"6px",flexWrap:"wrap"}});bt.appendChild(h("button",{html:"📤 Exportar",style:{background:"transparent",border:"1px solid var(--border)",borderRadius:"4px",color:"var(--textDim)",padding:"4px 8px",fontSize:"11px",cursor:"pointer"},onclick:()=>expChar(c.id)}));bt.appendChild(h("button",{html:"📋 Duplicar",style:{background:"transparent",border:"1px solid var(--border)",borderRadius:"4px",color:"var(--textDim)",padding:"4px 8px",fontSize:"11px",cursor:"pointer"},onclick:()=>dupChar(c.id)}));if(characters.length>1)bt.appendChild(h("button",{html:"🗑 Eliminar",style:{background:"transparent",border:"1px solid var(--danger)",borderRadius:"4px",color:"var(--danger)",padding:"4px 8px",fontSize:"11px",cursor:"pointer"},onclick:()=>{if(confirm("¿Eliminar?"))delChar(c.id)}}));cd.appendChild(bt);mg.appendChild(cd)});
     const mb=h("div",{style:{display:"flex",gap:"8px",marginTop:"16px",flexWrap:"wrap"}});mb.appendChild(h("button",{text:"+ Nuevo Personaje",style:{flex:"1",minWidth:"120px",background:"rgba(201,162,39,.13)",border:"1px solid var(--goldDim)",borderRadius:"6px",color:"var(--gold)",padding:"10px 16px",fontSize:"13px",cursor:"pointer",fontFamily:"var(--fd)",letterSpacing:"1px"},onclick:addNew}));
     const ib=h("button",{text:"📥 Importar",style:{flex:"1",minWidth:"120px",background:"var(--bgCard)",border:"1px solid var(--goldDim)",borderRadius:"6px",color:"var(--gold)",padding:"10px 16px",fontSize:"13px",cursor:"pointer",fontFamily:"var(--fd)",letterSpacing:"1px"},onclick:()=>document.getElementById("fileImp").click()});mb.appendChild(ib);
-    const fi=document.createElement("input");fi.type="file";fi.accept=".json";fi.id="fileImp";fi.style.display="none";fi.addEventListener("change",impChar);mb.appendChild(fi);mg.appendChild(mb);app.appendChild(mg);
+    const fi=document.createElement("input");fi.type="file";fi.accept=".json";fi.id="fileImp";fi.style.display="none";fi.addEventListener("change",impChar);mb.appendChild(fi);mb.appendChild(h("button",{text:"💾 Respaldar todo",style:{flex:"1",minWidth:"120px",background:"var(--bgCard)",border:"1px solid var(--goldDim)",borderRadius:"6px",color:"var(--gold)",padding:"10px 16px",fontSize:"13px",cursor:"pointer",fontFamily:"var(--fd)",letterSpacing:"1px"},onclick:expAll}));mg.appendChild(mb);app.appendChild(mg);
   }
   if(!showManager){
     const resetBar=h("div",{style:{padding:"8px 16px 0",display:"flex",justifyContent:"flex-end"}});resetBar.appendChild(h("button",{text:"🔄 Nuevo Personaje (Limpiar)",style:{background:"transparent",border:"1px solid var(--border)",borderRadius:"4px",color:"var(--textDim)",padding:"5px 12px",fontSize:"11px",cursor:"pointer",fontFamily:"var(--fn)"},onclick:resetChar}));app.appendChild(resetBar);
     const ct=h("div",{style:{padding:"0 16px 100px"}});const rn=tabR[currentTab];if(rn)ct.appendChild(rn());app.appendChild(ct);
   }
+  requestAnimationFrame(()=>{if(_scrollTopNext){window.scrollTo(0,0);_scrollTopNext=false}else window.scrollTo(0,_sy)});
 }
 load();render();
+window.addEventListener("storage",e=>{if(e.key!=="gaethar_chars")return;try{const s=JSON.parse(e.newValue||"[]");if(s.length){const cur=activeCharId;characters=s;activeCharId=s.some(c=>c.id===cur)?cur:s[0].id;render()}}catch{}});
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){navigator.serviceWorker.register("sw.js").catch(()=>{})}
 </script>
 </body>
 </html>

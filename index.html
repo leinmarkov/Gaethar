@@ -106,7 +106,7 @@ equipo:{armaduraPrincipal:"",faldon:"",casco:"",guantes:"",botas:"",capa:"",anil
 armasComp:{manoDerecha:{nivel:"sinPracticar",valor:10},manoIzquierda:{nivel:"sinPracticar",valor:10},armaSecundaria:{nivel:"sinPracticar",valor:10},preparadoArmaPrincipal:{nivel:"sinPracticar",valor:10},preparadoArmaSecundaria:{nivel:"sinPracticar",valor:10}},
 atkMode:{manoDerecha:"mele",manoIzquierda:"mele",armaSecundaria:"mele",preparadoArmaPrincipal:"mele",preparadoArmaSecundaria:"mele"},
 escudo:"No",
-mochila:"",dotes:Object.fromEntries(DOTES_LEVELS.map(l=>[l,""])),tecnicas:Array.from({length:60},()=>({nombre:"",pn:"",recurso:"",notas:""})),pnTotales:0,mejoras:Array.from({length:20},()=>({nombre:"",duracion:"",notas:""})),aflicciones:Object.fromEntries(AFFLICTIONS.map(a=>[a,{cantidad:"",duracion:"",restante:""}])),estadosAlterados:Object.fromEntries(STATUS_EFFECTS.map(s=>[s,{cantidad:"",duracion:"",restante:""}])),resistencias:Object.fromEntries(RESISTANCES.map(r=>[r,""])),caUd:"",temple:"",notas:"",initTracker:{criaturas:[],ronda:1}}}
+mochila:"",dotes:Object.fromEntries(DOTES_LEVELS.map(l=>[l,""])),tecnicas:Array.from({length:60},()=>({nombre:"",pn:"",recurso:"",notas:""})),pnTotales:0,pnExtras:0,atrExtras:0,mejoras:Array.from({length:20},()=>({nombre:"",duracion:"",notas:""})),aflicciones:Object.fromEntries(AFFLICTIONS.map(a=>[a,{cantidad:"",duracion:"",restante:""}])),estadosAlterados:Object.fromEntries(STATUS_EFFECTS.map(s=>[s,{cantidad:"",duracion:"",restante:""}])),resistencias:Object.fromEntries(RESISTANCES.map(r=>[r,""])),caUd:"",temple:"",notas:"",initTracker:{criaturas:[],ronda:1}}}
 
 let characters=[],activeCharId=null,currentTab="general",showManager=false;
 let newCri={nombre:"",iniciativa:"",pvTotal:"",paTotal:""};
@@ -125,6 +125,8 @@ function gc(){
   if(!ch.atkMode)ch.atkMode={manoDerecha:"mele",manoIzquierda:"mele",armaSecundaria:"mele",preparadoArmaPrincipal:"mele",preparadoArmaSecundaria:"mele"};
   if(!ch.escudo)ch.escudo="No";
   if(!ch.edad)ch.edad="Adulto";
+  if(ch.atrExtras===undefined)ch.atrExtras=0;
+  if(ch.pnExtras===undefined)ch.pnExtras=0;
   if(!ch.mods)ch.mods={pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0,bCMMod:0,bCDMod:0,aLigMod:0,aMedMod:0,aPesMod:0};
   if(!ch.mods.bCMMod&&ch.mods.bCMMod!==0)ch.mods.bCMMod=0;
   if(!ch.mods.bCDMod&&ch.mods.bCDMod!==0)ch.mods.bCDMod=0;
@@ -213,13 +215,13 @@ function calc(){
   const aMed=rd((a.CM||0)/10)+rd((a.AGI||0)/10)+shieldBonus+(parseInt(m.aMedMod)||0);
   const aPes=rd((a.CM||0)/10)+shieldBonus+(parseInt(m.aPesMod)||0);
   const pvR=pv-(parseInt(ch.stats.pvGast)||0),amR=afMag-(parseInt(ch.stats.amGast)||0),paR=paMax-(parseInt(ch.stats.paGast)||0),recR=rec-(parseInt(ch.stats.recursoGast)||0);
-  const pnTN=parseInt(ch.pnTotales)||0,pnU=(ch.tecnicas||[]).reduce((s,t)=>s+(parseInt(t.pn)||0),0);
+  const pnTN=parseInt(ch.pnTotales)||0,pnX=parseInt(ch.pnExtras)||0,pnU=(ch.tecnicas||[]).reduce((s,t)=>s+(parseInt(t.pn)||0),0);
   // Pasivas: 50 - ATTR + competencia + mod
   const percComp=getSkillVal(ch,"Percepción"),invComp=getSkillVal(ch,"Investigación"),perspComp=getSkillVal(ch,"Perspicacia");
   const percPas=50-(a.INT||0)+percComp+(parseInt(m.percPasMod)||0);
   const invPas=50-(a.INT||0)+invComp+(parseInt(m.invPasMod)||0);
   const perspPas=50-(a.VOL||0)+perspComp+(parseInt(m.perspPasMod)||0);
-  return{pv,pvBase,afMag,afMagBase,paMax,rec,ini,iniBase,tenso,estresado,paTot,bCM,bCD,pCrit,pCritBase,dCrit,dCritBase,aLig,aMed,aPes,pvR,amR,paR,recR,pnTN,pnU,pnR:pnTN-pnU,shieldBonus,percPas,invPas,perspPas};
+  return{pv,pvBase,afMag,afMagBase,paMax,rec,ini,iniBase,tenso,estresado,paTot,bCM,bCD,pCrit,pCritBase,dCrit,dCritBase,aLig,aMed,aPes,pvR,amR,paR,recR,pnTN,pnX,pnU,pnR:pnTN+pnX-pnU,shieldBonus,percPas,invPas,perspPas};
 }
 
 function updCri(id,changes){fu(ch=>{const t=ch.initTracker||{criaturas:[],ronda:1};return{...ch,initTracker:{...t,criaturas:t.criaturas.map(c=>c.id===id?{...c,...changes}:c).sort((a,b)=>b.iniAct-a.iniAct)}}})}
@@ -244,9 +246,10 @@ function renderGeneral(){
   tbl.appendChild(tb);f.appendChild(tbl);
   const budBox=h("div",{style:{display:"flex",gap:"8px",marginTop:"10px",padding:"10px 12px",background:"rgba(203,169,79,.07)",border:"1px solid var(--goldDim)",borderRadius:"6px",justifyContent:"space-around",textAlign:"center"}});
   function budCell(label,fn){const d=h("div");d.appendChild(h("div",{text:label,style:{fontSize:"10px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"2px"}}));const v=h("div",{style:{fontSize:"17px",fontFamily:"var(--fd)",fontWeight:"700"}});const r=fn();if(typeof r==="object"){v.textContent=r.text;v.style.color=r.color;}else{v.textContent=String(r);v.style.color="var(--goldBright)";}regLive(v,fn);d.appendChild(v);return d;}
-  budBox.appendChild(budCell("Disponibles",()=>String(atrBudget(gc().edad,gc().nivel))));
+  budBox.appendChild(budCell("Disponibles",()=>String(atrBudget(gc().edad,gc().nivel)+(parseInt(gc().atrExtras)||0))));
+  const exCell=h("div");exCell.appendChild(h("div",{text:"+ Extras",style:{fontSize:"10px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"2px"}}));exCell.appendChild(mi(()=>gc().atrExtras||0,v=>ss({atrExtras:parseInt(v)||0}),{type:"number",style:{width:"58px",textAlign:"center",fontSize:"15px",fontFamily:"var(--fd)"}}));budBox.appendChild(exCell);
   budBox.appendChild(budCell("Usados",()=>String(calc().paTot)));
-  budBox.appendChild(budCell("Restantes",()=>{const g=gc();const r=atrBudget(g.edad,g.nivel)-calc().paTot;return{text:String(r),color:r<0?"var(--danger)":r===0?"var(--goldBright)":"var(--success)"};}));
+  budBox.appendChild(budCell("Restantes",()=>{const g=gc();const r=atrBudget(g.edad,g.nivel)+(parseInt(g.atrExtras)||0)-calc().paTot;return{text:String(r),color:r<0?"var(--danger)":r===0?"var(--goldBright)":"var(--success)"};}));
   f.appendChild(budBox);
 
   f.appendChild(SH("Estadísticas"));
@@ -422,6 +425,7 @@ function renderTecnicas(){
   f.appendChild(SH("Técnicas y Hechizos"));
   const pr=h("div",{style:{display:"flex",gap:"8px",marginBottom:"12px"}});
   const d1=h("div",{style:{flex:"1"}});d1.appendChild(h("div",{text:"PN Totales",style:{fontSize:"11px",color:"var(--textDim)"}}));d1.appendChild(mi(()=>ch.pnTotales,v=>ss({pnTotales:v}),{type:"number",style:{textAlign:"center",width:"100%"}}));pr.appendChild(d1);
+  const d1b=h("div",{style:{flex:"1"}});d1b.appendChild(h("div",{text:"PN Extra",style:{fontSize:"11px",color:"var(--textDim)"}}));d1b.appendChild(mi(()=>ch.pnExtras||0,v=>ss({pnExtras:parseInt(v)||0}),{type:"number",style:{textAlign:"center",width:"100%"}}));pr.appendChild(d1b);
   const d2=h("div",{style:{flex:"1"}});d2.appendChild(h("div",{text:"PN Restantes",style:{fontSize:"11px",color:"var(--textDim)"}}));
   const pnBox=h("div",{style:{background:"var(--bgInput)",border:"1px solid var(--border)",borderRadius:"4px",padding:"6px 8px",textAlign:"center",fontSize:"14px",height:"33px",lineHeight:"20px"}});
   regLive(pnBox,()=>{const c=calc();return{text:String(c.pnR),color:c.pnR<0?"var(--danger)":"var(--goldBright)"}});

@@ -1,5 +1,5 @@
-const CACHE = "gaethar-v1";
-const CORE = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
+const CACHE = "gaethar-v2";
+const CORE = ["./", "./index.html", "./manifest.json", "./datos.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
@@ -23,6 +23,17 @@ self.addEventListener("fetch", e => {
         caches.open(CACHE).then(c => c.put("./index.html", copy));
         return res;
       }).catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+  // datos.json: red primero (para recibir actualizaciones del manual), caché sin internet
+  if (e.request.url.indexOf("datos.json") !== -1) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy));
+        return res;
+      }).catch(() => caches.match(e.request))
     );
     return;
   }

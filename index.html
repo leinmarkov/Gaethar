@@ -177,9 +177,32 @@ function bonosAuto(ch){
       .forEach(x=>t[x.atributo]=(t[x.atributo]||0)+x.valor);}
   return t;
 }
-const totalBonos=ch=>Object.values(bonosAuto(ch)).reduce((a,b)=>a+b,0);
+const ATRKEYS=["FUE","AGI","CON","INT","VOL","CM","CD"];
+/* Solo los 7 atributos cuentan para el presupuesto; AM (Afinidad Mágica) va aparte. */
+const totalBonos=ch=>ATRKEYS.reduce((s,k)=>s+(bonosAuto(ch)[k]||0),0);
+const bonoAM=ch=>bonosAuto(ch).AM||0;
 
 /* Descuento de PN: técnica de especialización que abarata hechizos de tu escuela principal. */
+/* Todas las escuelas a las que el personaje tiene acceso, con su origen. */
+function escuelasAcceso(ch){
+  if(!DATOS)return [];
+  const out=[],add=(e,f)=>{if(e&&!out.some(x=>x.escuela===e))out.push({escuela:e,fuente:f})};
+  const base=DATOS.escuelaBase?.[ch.clase];
+  if(base&&base!=="__disciplina__")add(base,"Clase");
+  if(ch.subclase)add(DATOS.escuelaSubclase?.[ch.clase+"|"+ch.subclase],"Subclase");
+  if(ch.especializacion)(DATOS.accesoExtra?.[ch.clase+"|"+ch.especializacion]||[]).forEach(e=>add(e,ch.especializacion));
+  if(ch.subclase)(DATOS.accesoExtra?.[ch.clase+"|"+ch.subclase]||[]).forEach(e=>add(e,ch.subclase));
+  // técnicas elegidas que otorgan acceso (p.ej. Hechicero Innato)
+  (ch.elegidas||[]).forEach(id=>(DATOS.accesoTecnica?.[id]||[]).forEach(e=>add(e,id.split("|")[1])));
+  // Mago: sus disciplinas definen principal/secundaria/complementaria
+  const cla=dGet("clases",ch.clase),mg=cla?.especializacion?.magias?.[ch.especializacion];
+  if(mg){
+    (escuelasPrincipales(ch)).forEach(e=>add(e,"Principal"));
+    (mg.Secundaria?.escuelas||[]).forEach(e=>add(e,"Secundaria"));
+    (mg.Complementaria?.escuelas||[]).forEach(e=>add(e,"Complementaria"));
+  }
+  return out;
+}
 function escuelasPrincipales(ch){
   const cla=dGet("clases",ch.clase),e=cla?.especializacion;
   if(!e||!e.magias||!ch.especializacion)return [];
@@ -187,10 +210,22 @@ function escuelasPrincipales(ch){
   const l=mg.Principal.escuelas||[];
   return mg.Principal.eligeUna ? (ch.escuelaPrincipal?[ch.escuelaPrincipal]:[]) : l;
 }
+const TIERKEY=t=>t.startsWith("Bás")?"B":t.startsWith("Avan")?"A":"M";
+/* Descuentos activos = los que otorgan las técnicas que el personaje ya eligió. */
+function descuentosActivos(ch){
+  if(!DATOS?.descuentosPN)return [];
+  return (ch.elegidas||[]).map(id=>DATOS.descuentosPN[id]).filter(Boolean);
+}
 function pnDe(ch,ent){
   let pn=ent.pn||0;
-  if(ent.tipo==="hechizo"&&ch.descuentoHechizos&&escuelasPrincipales(ch).includes(ent.escuela)) pn=Math.max(1,pn-1);
-  return pn;
+  if(ent.tipo!=="hechizo"||!ent.escuela)return pn;
+  let mejor=0;
+  descuentosActivos(ch).forEach(d=>{
+    if(d.escuelas.length&&!d.escuelas.includes(ent.escuela))return;
+    if(d.tiers.length&&!d.tiers.includes(TIERKEY(ent.tier)))return;
+    if(d.monto>mejor)mejor=d.monto;
+  });
+  return Math.max(1,pn-mejor);
 }
 async function cargarDatos(){
   try{const r=await fetch("datos.json",{cache:"no-cache"});if(!r.ok)throw 0;DATOS=await r.json();}
@@ -317,7 +352,7 @@ function getSkillVal(ch,name){const sk=ch.skills?.[name];return typeof sk==="obj
 function calc(){
   const ch=gc(),a=ch.attrsActual,ab=ch.attrs,niv=parseInt(ch.nivel)||1,m=ch.mods||{};
   const pvBase=(niv*5)+(a.CON||0),pv=pvBase+(parseInt(m.pvMod)||0);
-  const afMagBase=a.INT||0,afMag=afMagBase+(parseInt(m.amMod)||0);
+  const afMagBase=(a.INT||0)+(DATOS?bonoAM(ch):0),afMag=afMagBase+(parseInt(m.amMod)||0);
   const paMax=Math.max(5,Math.min(10,rd((a.CON||0)/10)));
   const rec=a.VOL||0;
   const iniBase=a.AGI||0,ini=iniBase+(parseInt(m.iniMod)||0);
@@ -428,9 +463,13 @@ function renderGeneral(){
   f.appendChild(g2);
 
   f.appendChild(SH("Atributos"));
-  const tbl=document.createElement("table");tbl.innerHTML='<thead><tr><th>Atributo</th><th>Base</th><th>Actual</th></tr></thead>';
+  const tbl=document.createElement("table");tbl.innerHTML='<thead><tr><th>Atributo</th><th>Base</th>'+(DATOS?'<th style="text-align:center">Bono</th>':'')+'<th>Actual</th></tr></thead>';
   const tb=document.createElement("tbody");
-  ATTRIBUTES.forEach(at=>{const tr=document.createElement("tr");const td1=document.createElement("td");td1.innerHTML='<span style="color:var(--gold);font-family:var(--fd);font-size:12px">'+at.label+'</span> <span style="color:var(--textDim);font-size:11px">('+at.key+')</span>';const td2=document.createElement("td");td2.style.textAlign="center";td2.appendChild(mi(()=>ch.attrs[at.key],v=>ss(c=>({...c,attrs:{...c.attrs,[at.key]:parseInt(v)||0}})),{type:"number",style:{textAlign:"center",width:"60px"}}));const td3=document.createElement("td");td3.style.textAlign="center";td3.appendChild(mi(()=>ch.attrsActual[at.key],v=>ss(c=>({...c,attrsActual:{...c.attrsActual,[at.key]:parseInt(v)||0}})),{type:"number",style:{textAlign:"center",width:"60px"}}));tr.append(td1,td2,td3);tb.appendChild(tr)});
+  ATTRIBUTES.forEach(at=>{const tr=document.createElement("tr");const td1=document.createElement("td");td1.innerHTML='<span style="color:var(--gold);font-family:var(--fd);font-size:12px">'+at.label+'</span> <span style="color:var(--textDim);font-size:11px">('+at.key+')</span>';const td2=document.createElement("td");td2.style.textAlign="center";td2.appendChild(mi(()=>ch.attrs[at.key],v=>ss(c=>({...c,attrs:{...c.attrs,[at.key]:parseInt(v)||0}})),{type:"number",style:{textAlign:"center",width:"60px"}}));const td3=document.createElement("td");td3.style.textAlign="center";td3.appendChild(mi(()=>ch.attrsActual[at.key],v=>ss(c=>({...c,attrsActual:{...c.attrsActual,[at.key]:parseInt(v)||0}})),{type:"number",style:{textAlign:"center",width:"60px"}}));let tdb=null;
+    if(DATOS){tdb=document.createElement("td");tdb.style.textAlign="center";
+      const b=bonosAuto(ch)[at.key]||0;
+      tdb.innerHTML='<span style="font-family:var(--fd);font-size:13px;color:'+(b>0?"var(--gold)":b<0?"var(--danger)":"var(--textDim)")+'">'+(b?(b>0?"+":"")+b:"—")+'</span>';}
+    tdb?tr.append(td1,td2,tdb,td3):tr.append(td1,td2,td3);tb.appendChild(tr)});
   tbl.appendChild(tb);f.appendChild(tbl);
   const budBox=h("div",{style:{display:"flex",gap:"8px",marginTop:"10px",padding:"10px 12px",background:"rgba(203,169,79,.07)",border:"1px solid var(--goldDim)",borderRadius:"6px",justifyContent:"space-around",textAlign:"center"}});
   function budCell(label,fn){const d=h("div");d.appendChild(h("div",{text:label,style:{fontSize:"10px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"2px"}}));const v=h("div",{style:{fontSize:"17px",fontFamily:"var(--fd)",fontWeight:"700"}});const r=fn();if(typeof r==="object"){v.textContent=r.text;v.style.color=r.color;}else{v.textContent=String(r);v.style.color="var(--goldBright)";}regLive(v,fn);d.appendChild(v);return d;}
@@ -646,10 +685,7 @@ function entradasDisponibles(ch,tipo){
     const cls=[ch.clase,ch.mcClase].filter(Boolean);
     return todo.filter(e=>cls.includes(e.clase)&&(!e.subclase||e.subclase===ch.subclase));
   }
-  const props=escuelasPrincipales(ch);
-  const cla=dGet("clases",ch.clase),mg=cla?.especializacion?.magias?.[ch.especializacion];
-  const sec=mg?.Secundaria?.escuelas||[], com=mg?.Complementaria?.escuelas||[];
-  const permitidas=[...props,...sec,...com];
+  const permitidas=escuelasAcceso(ch).map(x=>x.escuela);
   return permitidas.length?todo.filter(e=>permitidas.includes(e.escuela)):[];
 }
 function togglePick(ch,ent){
@@ -699,6 +735,39 @@ function pickerSeccion(ch,tipo,titulo){
   return f;
 }
 
+/* Raciales de especie + raza: no cuestan PN, se otorgan solas. */
+function racialesDe(ch){
+  if(!DATOS)return [];
+  const out=[];
+  const esp=dGet("especies",ch.especie),raz=dGet("razas",ch.raza);
+  (esp?.raciales||[]).forEach(r=>out.push({...r,fuente:ch.especie}));
+  (raz?.raciales||[]).forEach(r=>out.push({...r,fuente:ch.raza}));
+  return out;
+}
+function seccionRaciales(ch){
+  const f=document.createDocumentFragment(),lst=racialesDe(ch);
+  if(!lst.length)return f;
+  f.appendChild(SH("Raciales ("+lst.length+")"));
+  f.appendChild(h("div",{text:"Las otorga tu especie y tu raza. No cuestan P.N.",
+    style:{fontSize:"10px",color:"var(--textDim)",marginBottom:"6px"}}));
+  let fuentePrev=null;
+  lst.forEach(r=>{
+    if(r.fuente!==fuentePrev){fuentePrev=r.fuente;
+      f.appendChild(h("div",{text:r.fuente,style:{fontSize:"10px",color:"var(--gold)",fontFamily:"var(--fd)",letterSpacing:"1px",margin:"8px 0 3px",borderBottom:"1px solid var(--goldDim)",paddingBottom:"2px"}}));}
+    const row=h("div",{style:{display:"flex",alignItems:"center",gap:"6px",padding:"5px 4px",borderBottom:"1px solid rgba(138,106,46,.14)"}});
+    row.appendChild(h("span",{text:"◆",style:{color:"var(--gold)",fontSize:"11px"}}));
+    row.appendChild(h("span",{text:r.nombre,style:{flex:"1",fontSize:"12px",color:"var(--textBright)"}}));
+    if(r.forma)row.appendChild(h("span",{text:"forma "+r.forma,attrs:{title:"Solo disponible en forma "+r.forma},
+      style:{fontSize:"9px",color:"var(--goldBright)",whiteSpace:"nowrap"}}));
+    row.appendChild(h("span",{text:r.accion,style:{fontSize:"9px",color:"var(--textDim)",whiteSpace:"nowrap"}}));
+    if(r.costo!=null)row.appendChild(h("span",{text:r.costo+" "+(r.recurso||""),style:{fontSize:"9px",color:"var(--textDim)",whiteSpace:"nowrap"}}));
+    if(r.salvacion)row.appendChild(h("span",{text:"salv. "+r.salvacion,style:{fontSize:"9px",color:"var(--textDim)"}}));
+    row.appendChild(h("span",{text:"0 PN",style:{fontSize:"10px",fontFamily:"var(--fd)",color:"var(--textDim)",width:"42px",textAlign:"right"}}));
+    f.appendChild(row);
+  });
+  return f;
+}
+
 function renderTecnicas(){
   const ch=gc(),f=document.createDocumentFragment();
   f.appendChild(SH("Técnicas y Hechizos"));
@@ -717,6 +786,22 @@ function renderTecnicas(){
   const apply=h("button",{class:"btn-blue",text:"Aplicar",style:{width:"auto",padding:"5px 14px",fontSize:"11px",flex:"0 0 auto"},onclick:()=>{const g=gc();ss({pnTotales:pnSugerido(g.edad,g.nivel)});render();}});
   sug.appendChild(sugTxt);sug.appendChild(apply);f.appendChild(sug);
   if(DATOS){
+    f.appendChild(seccionRaciales(ch));
+    // panel de escuelas de magia accesibles
+    const acc=escuelasAcceso(ch);
+    if(acc.length||DATOS.escuelaBase?.[ch.clase]){
+      f.appendChild(SH("Escuelas de magia"));
+      if(acc.length){
+        const cont=h("div",{style:{display:"flex",flexWrap:"wrap",gap:"6px",marginBottom:"8px"}});
+        acc.forEach(x=>cont.appendChild(h("span",{
+          html:'<b style="color:var(--goldBright)">'+esc(x.escuela)+'</b> <span style="color:var(--textDim);font-size:9px">'+esc(x.fuente)+'</span>',
+          style:{fontSize:"11px",padding:"4px 9px",border:"1px solid var(--goldDim)",borderRadius:"12px",background:"rgba(203,169,79,.07)"}})));
+        f.appendChild(cont);
+      } else {
+        f.appendChild(h("div",{text:"Elige tu subclase o especialización para definir a qué escuelas tienes acceso.",
+          style:{fontSize:"11px",color:"var(--textDim)",marginBottom:"8px",lineHeight:"1.5"}}));
+      }
+    }
     f.appendChild(pickerSeccion(ch,"tecnica","Técnicas disponibles"));
     f.appendChild(pickerSeccion(ch,"hechizo","Hechizos disponibles"));
     const eleg=(ch.elegidas||[]).map(id=>{const [t,n]=id.split("|");
@@ -738,14 +823,11 @@ function renderTecnicas(){
       f.appendChild(h("div",{text:"Las descripciones no vienen en el paquete de datos: consúltalas en el manual.",
         style:{fontSize:"10px",color:"var(--textDim)",marginTop:"6px",lineHeight:"1.5"}}));
     }
-    // descuento de PN por técnica de especialización
-    if(escuelasPrincipales(ch).length){
-      const dr=h("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginTop:"10px",flexWrap:"wrap"}});
-      dr.appendChild(h("button",{class:"btn-ghost",html:ico("destello",13)+" Descuento de 1 PN en hechizos de "+escuelasPrincipales(ch).join("/"),
-        attrs:{"aria-pressed":String(!!ch.descuentoHechizos),title:"Actívalo si tienes la técnica de tu especialización que abarata tus hechizos principales"},
-        style:ch.descuentoHechizos?{opacity:"1",color:"var(--goldBright)"}:{},
-        onclick:()=>{ss(c=>({...c,descuentoHechizos:!c.descuentoHechizos}));render()}}));
-      f.appendChild(dr);
+    const da=descuentosActivos(ch);
+    if(da.length){
+      f.appendChild(h("div",{html:ico("destello",12)+" Descuentos activos: "+
+        da.map(d=>"−"+d.monto+" PN en "+(d.escuelas.join("/")||"tus hechizos")+(d.tiers.length?" ("+d.tiers.map(t=>({B:"Básicos",A:"Avanzados",M:"Maestros"})[t]).join(", ")+")":"")).join(" · "),
+        style:{fontSize:"10px",color:"var(--gold)",marginTop:"10px",padding:"7px 9px",border:"1px solid var(--goldDim)",borderRadius:"6px",lineHeight:"1.5"}}));
     }
     f.appendChild(SH("Captura manual"));
   }

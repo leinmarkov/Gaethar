@@ -113,7 +113,7 @@ equipo:{armaduraPrincipal:"",faldon:"",casco:"",guantes:"",botas:"",capa:"",anil
 armasComp:{manoDerecha:{nivel:"sinPracticar",valor:10},manoIzquierda:{nivel:"sinPracticar",valor:10},armaSecundaria:{nivel:"sinPracticar",valor:10},preparadoArmaPrincipal:{nivel:"sinPracticar",valor:10},preparadoArmaSecundaria:{nivel:"sinPracticar",valor:10}},
 atkMode:{manoDerecha:"mele",manoIzquierda:"mele",armaSecundaria:"mele",preparadoArmaPrincipal:"mele",preparadoArmaSecundaria:"mele"},
 escudo:"No",
-mochila:"",dotes:Object.fromEntries(DOTES_LEVELS.map(l=>[l,""])),tecnicas:Array.from({length:60},()=>({nombre:"",pn:"",recurso:"",notas:""})),pnTotales:0,pnExtras:0,atrExtras:0,raza:"",subclase:"",especializacion:"",escuelaPrincipal:"",descuentoHechizos:false,mcClase:"",mcNivel:0,trasfondoEleccion:"",eleccionAtr:[],compOverride:{},elegidas:[],mejoras:Array.from({length:20},()=>({nombre:"",duracion:"",notas:""})),aflicciones:Object.fromEntries(AFFLICTIONS.map(a=>[a,{cantidad:"",duracion:"",restante:""}])),estadosAlterados:Object.fromEntries(STATUS_EFFECTS.map(s=>[s,{cantidad:"",duracion:"",restante:""}])),resistencias:Object.fromEntries(RESISTANCES.map(r=>[r,""])),caUd:"",temple:"",notas:"",initTracker:{criaturas:[],ronda:1}}}
+mochila:"",dotes:Object.fromEntries(DOTES_LEVELS.map(l=>[l,""])),tecnicas:Array.from({length:60},()=>({nombre:"",pn:"",recurso:"",notas:""})),pnTotales:0,pnExtras:0,atrExtras:0,raza:"",subclase:"",especializacion:"",escuelaPrincipal:"",descuentoHechizos:false,mcClase:"",mcNivel:0,trasfondoEleccion:"",eleccionAtr:[],compOverride:{},attrOverride:{},elegidas:[],mejoras:Array.from({length:20},()=>({nombre:"",duracion:"",notas:""})),aflicciones:Object.fromEntries(AFFLICTIONS.map(a=>[a,{cantidad:"",duracion:"",restante:""}])),estadosAlterados:Object.fromEntries(STATUS_EFFECTS.map(s=>[s,{cantidad:"",duracion:"",restante:""}])),resistencias:Object.fromEntries(RESISTANCES.map(r=>[r,""])),caUd:"",temple:"",notas:"",initTracker:{criaturas:[],ronda:1}}}
 
 let characters=[],activeCharId=null,currentTab="general",showManager=false;
 let newCri={nombre:"",iniciativa:"",pvTotal:"",paTotal:""};
@@ -180,6 +180,16 @@ function bonosAuto(ch){
 const ATRKEYS=["FUE","AGI","CON","INT","VOL","CM","CD"];
 /* Solo los 7 atributos cuentan para el presupuesto; AM (Afinidad Mágica) va aparte. */
 const totalBonos=ch=>ATRKEYS.reduce((s,k)=>s+(bonosAuto(ch)[k]||0),0);
+/* Valor efectivo de cada atributo: Base + Bono, o el override manual si existe. */
+function attrsEfectivos(ch){
+  const b=DATOS?bonosAuto(ch):{},out={};
+  ATRKEYS.forEach(k=>{
+    out[k]=(ch.attrOverride&&ch.attrOverride[k]!=null&&ch.attrOverride[k]!=="")
+      ? (parseInt(ch.attrOverride[k])||0)
+      : (parseInt(ch.attrs[k])||0)+(b[k]||0);
+  });
+  return out;
+}
 const bonoAM=ch=>bonosAuto(ch).AM||0;
 
 /* Descuento de PN: técnica de especialización que abarata hechizos de tu escuela principal. */
@@ -278,6 +288,7 @@ function gc(){
   if(!ch.compOverride)ch.compOverride={};
   if(!Array.isArray(ch.elegidas))ch.elegidas=[];
   if(!Array.isArray(ch.eleccionAtr))ch.eleccionAtr=[];
+  if(!ch.attrOverride)ch.attrOverride={};
   if(ch.pnExtras===undefined)ch.pnExtras=0;
   if(!ch.mods)ch.mods={pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0,bCMMod:0,bCDMod:0,aLigMod:0,aMedMod:0,aPesMod:0};
   if(!ch.mods.bCMMod&&ch.mods.bCMMod!==0)ch.mods.bCMMod=0;
@@ -350,7 +361,10 @@ function expAll(){const b=new Blob([JSON.stringify({schemaVersion:1,exportedAt:n
 function getSkillVal(ch,name){const sk=ch.skills?.[name];return typeof sk==="object"?parseInt(sk.valor)||0:parseInt(sk)||0}
 
 function calc(){
-  const ch=gc(),a=ch.attrsActual,ab=ch.attrs,niv=parseInt(ch.nivel)||1,m=ch.mods||{};
+  const ch=gc(),ab=ch.attrs,niv=parseInt(ch.nivel)||1,m=ch.mods||{};
+  /* Actual = Base comprada + Bono automático. El jugador puede sobrescribirlo
+     (efectos temporales); en ese caso manda su número. */
+  const a=attrsEfectivos(ch);
   const pvBase=(niv*5)+(a.CON||0),pv=pvBase+(parseInt(m.pvMod)||0);
   const afMagBase=(a.INT||0)+(DATOS?bonoAM(ch):0),afMag=afMagBase+(parseInt(m.amMod)||0);
   const paMax=Math.max(5,Math.min(10,rd((a.CON||0)/10)));
@@ -471,16 +485,19 @@ function renderGeneral(){
       tdb.innerHTML='<span style="font-family:var(--fd);font-size:13px;color:'+(b>0?"var(--gold)":b<0?"var(--danger)":"var(--textDim)")+'">'+(b?(b>0?"+":"")+b:"—")+'</span>';}
     tdb?tr.append(td1,td2,tdb,td3):tr.append(td1,td2,td3);tb.appendChild(tr)});
   tbl.appendChild(tb);f.appendChild(tbl);
+  if(DATOS){
+    const ovk=Object.keys(gc().attrOverride||{}).filter(k=>gc().attrOverride[k]!=null&&gc().attrOverride[k]!=="");
+    f.appendChild(h("div",{text:"Base = puntos que compras. Bono = lo que dan especie, raza, clase y trasfondo. Actual = la suma; puedes sobrescribirla para efectos temporales.",
+      style:{fontSize:"10px",color:"var(--textDim)",margin:"6px 0",lineHeight:"1.5"}}));
+    if(ovk.length)f.appendChild(h("button",{class:"btn-ghost",html:ico("reiniciar",13)+" Quitar ajuste manual en "+ovk.join(", "),
+      style:{marginBottom:"4px"},onclick:()=>{ss(c=>({...c,attrOverride:{}}));render()}}));
+  }
   const budBox=h("div",{style:{display:"flex",gap:"8px",marginTop:"10px",padding:"10px 12px",background:"rgba(203,169,79,.07)",border:"1px solid var(--goldDim)",borderRadius:"6px",justifyContent:"space-around",textAlign:"center"}});
   function budCell(label,fn){const d=h("div");d.appendChild(h("div",{text:label,style:{fontSize:"10px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"2px"}}));const v=h("div",{style:{fontSize:"17px",fontFamily:"var(--fd)",fontWeight:"700"}});const r=fn();if(typeof r==="object"){v.textContent=r.text;v.style.color=r.color;}else{v.textContent=String(r);v.style.color="var(--goldBright)";}regLive(v,fn);d.appendChild(v);return d;}
-  budBox.appendChild(budCell("Disponibles",()=>String(atrBudget(gc().edad,gc().nivel)+(parseInt(gc().atrExtras)||0)+totalBonos(gc()))));
-  if(DATOS){const ba=bonosAuto(gc()),tb=totalBonos(gc());
-    if(tb!==0){const bc=h("div");bc.appendChild(h("div",{text:"Automáticos",style:{fontSize:"10px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"2px"}}));
-      bc.appendChild(h("div",{text:(tb>0?"+":"")+tb,attrs:{title:Object.entries(ba).map(([k,v])=>k+" "+(v>0?"+":"")+v).join(", ")},
-        style:{fontSize:"15px",fontFamily:"var(--fd)",color:"var(--gold)",padding:"5px 0"}}));budBox.appendChild(bc);}}
+  budBox.appendChild(budCell("Disponibles",()=>String(atrBudget(gc().edad,gc().nivel)+(parseInt(gc().atrExtras)||0))));
   const exCell=h("div");exCell.appendChild(h("div",{text:"+ Extras",style:{fontSize:"10px",color:"var(--textDim)",fontFamily:"var(--fd)",letterSpacing:"1px",marginBottom:"2px"}}));exCell.appendChild(mi(()=>gc().atrExtras||0,v=>ss({atrExtras:parseInt(v)||0}),{type:"number",style:{width:"58px",textAlign:"center",fontSize:"15px",fontFamily:"var(--fd)"}}));budBox.appendChild(exCell);
   budBox.appendChild(budCell("Usados",()=>String(calc().paTot)));
-  budBox.appendChild(budCell("Restantes",()=>{const g=gc();const r=atrBudget(g.edad,g.nivel)+(parseInt(g.atrExtras)||0)+totalBonos(g)-calc().paTot;return{text:String(r),color:r<0?"var(--danger)":r===0?"var(--goldBright)":"var(--success)"};}));
+  budBox.appendChild(budCell("Restantes",()=>{const g=gc();const r=atrBudget(g.edad,g.nivel)+(parseInt(g.atrExtras)||0)-calc().paTot;return{text:String(r),color:r<0?"var(--danger)":r===0?"var(--goldBright)":"var(--success)"};}));
   f.appendChild(budBox);
 
   f.appendChild(SH("Estadísticas"));

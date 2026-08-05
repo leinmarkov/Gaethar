@@ -113,7 +113,7 @@ equipo:{armaduraPrincipal:"",faldon:"",casco:"",guantes:"",botas:"",capa:"",anil
 armasComp:{manoDerecha:{nivel:"sinPracticar",valor:10},manoIzquierda:{nivel:"sinPracticar",valor:10},armaSecundaria:{nivel:"sinPracticar",valor:10},preparadoArmaPrincipal:{nivel:"sinPracticar",valor:10},preparadoArmaSecundaria:{nivel:"sinPracticar",valor:10}},
 atkMode:{manoDerecha:"mele",manoIzquierda:"mele",armaSecundaria:"mele",preparadoArmaPrincipal:"mele",preparadoArmaSecundaria:"mele"},
 escudo:"No",
-mochila:"",dotes:Object.fromEntries(DOTES_LEVELS.map(l=>[l,""])),tecnicas:Array.from({length:60},()=>({nombre:"",pn:"",recurso:"",notas:""})),pnTotales:0,pnExtras:0,atrExtras:0,raza:"",subclase:"",especializacion:"",escuelaPrincipal:"",descuentoHechizos:false,mcClase:"",mcNivel:0,trasfondoEleccion:"",eleccionAtr:[],compOverride:{},elegidas:[],mejoras:Array.from({length:20},()=>({nombre:"",duracion:"",notas:""})),aflicciones:Object.fromEntries(AFFLICTIONS.map(a=>[a,{cantidad:"",duracion:"",restante:""}])),estadosAlterados:Object.fromEntries(STATUS_EFFECTS.map(s=>[s,{cantidad:"",duracion:"",restante:""}])),resistencias:Object.fromEntries(RESISTANCES.map(r=>[r,""])),caUd:"",temple:"",notas:"",initTracker:{criaturas:[],ronda:1}}}
+mochila:"",dotes:Object.fromEntries(DOTES_LEVELS.map(l=>[l,""])),tecnicas:Array.from({length:60},()=>({nombre:"",pn:"",recurso:"",notas:""})),pnTotales:0,pnExtras:0,atrExtras:0,raza:"",subclase:"",especializacion:"",escuelaPrincipal:"",descuentoHechizos:false,mcClase:"",mcNivel:0,trasfondoEleccion:"",eleccionAtr:[],trasfondoAtrLibre:"",defectos2:"",compOverride:{},elegidas:[],mejoras:Array.from({length:20},()=>({nombre:"",duracion:"",notas:""})),aflicciones:Object.fromEntries(AFFLICTIONS.map(a=>[a,{cantidad:"",duracion:"",restante:""}])),estadosAlterados:Object.fromEntries(STATUS_EFFECTS.map(s=>[s,{cantidad:"",duracion:"",restante:""}])),resistencias:Object.fromEntries(RESISTANCES.map(r=>[r,""])),caUd:"",temple:"",notas:"",initTracker:{criaturas:[],ronda:1}}}
 
 let characters=[],activeCharId=null,currentTab="general",showManager=false;
 let newCri={nombre:"",iniciativa:"",pvTotal:"",paTotal:""};
@@ -172,6 +172,8 @@ function bonosAuto(ch){
   if(ch.mcClase)sum(dGet("clases",ch.mcClase)?.bonosAtributo);
   const el=dGet("especies",ch.especie)?.bonosALibreEleccion;
   if(el)(ch.eleccionAtr||[]).slice(0,el.cantidad).forEach(a=>{if(a)t[a]=(t[a]||0)+el.valor});
+  const tl=dGet("trasfondos",ch.trasfondo)?.bonosALibreEleccion;
+  if(tl&&ch.trasfondoAtrLibre)t[ch.trasfondoAtrLibre]=(t[ch.trasfondoAtrLibre]||0)+tl.valor;
   if(ch.trasfondoEleccion){const tr=dGet("trasfondos",ch.trasfondo);
     (tr?.eleccionAtributo||[]).filter(x=>x.atributo===ch.trasfondoEleccion)
       .forEach(x=>t[x.atributo]=(t[x.atributo]||0)+x.valor);}
@@ -278,6 +280,8 @@ function gc(){
   if(!ch.compOverride)ch.compOverride={};
   if(!Array.isArray(ch.elegidas))ch.elegidas=[];
   if(!Array.isArray(ch.eleccionAtr))ch.eleccionAtr=[];
+  if(ch.trasfondoAtrLibre===undefined)ch.trasfondoAtrLibre="";
+  if(ch.defectos2===undefined)ch.defectos2="";
   if(ch.pnExtras===undefined)ch.pnExtras=0;
   if(!ch.mods)ch.mods={pvMod:0,amMod:0,iniMod:0,pCritMod:0,dCritMod:0,percPasMod:0,invPasMod:0,perspPasMod:0,bCMMod:0,bCDMod:0,aLigMod:0,aMedMod:0,aPesMod:0};
   if(!ch.mods.bCMMod&&ch.mods.bCMMod!==0)ch.mods.bCMMod=0;
@@ -418,9 +422,14 @@ function renderGeneral(){
     selCampo("Trasfondo","trasfondo",DATOS.trasfondos.map(x=>x.nombre),"— elegir —",()=>({trasfondoEleccion:""}));
     const tra=dGet("trasfondos",ch.trasfondo);
     if(tra?.eleccionAtributo?.length) selCampo("Bono a elegir","trasfondoEleccion",tra.eleccionAtributo.map(x=>x.atributo),"— elegir —");
+    if(tra?.bonosALibreEleccion)
+      selCampo("Bono (+"+tra.bonosALibreEleccion.valor+")","trasfondoAtrLibre",ATTRIBUTES.map(a=>a.key),"— elegir —");
+    const opDef=[{value:"",label:"— ninguno —"}].concat(DATOS.defectos.map(x=>({value:x.nombre,label:x.nombre})));
     {const d=h("div");d.appendChild(lbl("Defecto"));
-     d.appendChild(msel(()=>ch.defectos||"",v=>{ss(c=>({...c,defectos:v}));render()},
-       [{value:"",label:"— ninguno —"}].concat(DATOS.defectos.map(x=>({value:x.nombre,label:x.nombre})))));g1.appendChild(d);}
+     d.appendChild(msel(()=>ch.defectos||"",v=>{ss(c=>({...c,defectos:v,...(v?{}:{defectos2:""})}));render()},opDef));g1.appendChild(d);}
+    if(ch.defectos){const d=h("div");d.appendChild(lbl("Segundo defecto"));
+     d.appendChild(msel(()=>ch.defectos2||"",v=>{ss(c=>({...c,defectos2:v}));render()},
+       opDef.filter(o=>o.value!==ch.defectos||o.value==="")));g1.appendChild(d);}
   } else {
     [["Especie/Raza","especie"],["Clase","clase"],["Trasfondo","trasfondo"]].forEach(([l,k])=>{
       const d=h("div");d.appendChild(lbl(l));d.appendChild(mi(()=>ch[k],v=>ss(c=>({...c,[k]:v})),{shrink:true}));g1.appendChild(d)});

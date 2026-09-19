@@ -848,7 +848,11 @@ function renderGeneral(){
     const opc=(arr,vacio)=>[{value:"",label:vacio}].concat(arr.map(x=>({value:x,label:x})));
     const sel=(titulo,campo,arr,vacio,onch)=>field(titulo,msel(()=>ch[campo]||"",v=>{ss(c=>({...c,[campo]:v,...(onch?onch(v,c):{})}));render()},opc(arr,vacio)));
     ig.appendChild(sel("Especie","especie",DATOS.especies.map(x=>x.nombre),"— elegir —",()=>({raza:""})));
-    if(ch.especie)ig.appendChild(sel("Raza","raza",DATOS.razas.filter(r=>r.especie===ch.especie).map(r=>r.nombre),"— elegir —"));
+    if(ch.especie){
+      let razasDe=DATOS.razas.filter(r=>r.especie===ch.especie).map(r=>r.nombre);
+      if(ch.especie==="Deorcyn") razasDe.sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"}));
+      ig.appendChild(sel("Raza","raza",razasDe,"— elegir —"));
+    }
     ig.appendChild(sel("Clase","clase",DATOS.clases.map(x=>x.nombre),"— elegir —",()=>({subclase:"",especializacion:"",escuelaPrincipal:"",escuelaComplementaria:""})));
     const cla=dGet("clases",ch.clase);
     if(cla?.subclases?.length)ig.appendChild(sel("Subclase","subclase",cla.subclases,"— elegir —"));

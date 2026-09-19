@@ -1,4 +1,4 @@
-const CACHE = "gaethar-v2";
+const CACHE = "gaethar-v47";
 const CORE = ["./", "./index.html", "./manifest.json", "./datos.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
